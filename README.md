@@ -7,7 +7,7 @@ California maps — starting with Los Angeles.
 
 See [DESIGN.md](./DESIGN.md) for the full vision, scope, and roadmap.
 
-## Status: v0.8 (smart construction + live planning)
+## Status: v0.9 (geography + scenarios)
 
 What's playable today:
 - Real isometric map of Los Angeles (MapLibre + deck.gl, dark basemap)
@@ -64,6 +64,18 @@ What's playable today:
   fare increases boost revenue but cost ridership and approval.
 - **Mayor / governor turnover** every 4 sim years with friendly / neutral /
   hostile bias affecting grant odds and approval baseline.
+- **Visual corridor overlay**: faint green = existing rail (huge build
+  discount), faint grey = freeway (smaller discount). Toggle in toolbar.
+- **Terrain build penalties**: routes through mountains (Santa Monicas,
+  Verdugos, San Gabriels) cost more and take longer to build — heavy on
+  subways (tunneling), light on buses.
+- **Ocean constraint**: clicks west of LA's coastline bounce with a
+  "can't build in the ocean" toast.
+- **Scenario picker** at game start: Sandbox, Olympics Sprint 2028,
+  Pacific Electric Restoration, LAX Express. Each sets a different
+  budget, deadline, and ridership target.
+- **Bond modal** with a slider, live monthly debt service preview, and
+  total repayment estimate.
 
 ## Run it
 
@@ -75,6 +87,7 @@ npm run gtfs       # one-time: fetches LA Metro Rail GTFS
 npm run streets    # one-time: fetches the LA County street graph (~3-7 min)
 npm run places     # one-time: fetches LA-area OSM population centers
 npm run corridors  # one-time: fetches LA-area rail + freeway corridors (~3-7 min)
+npm run terrain    # one-time: fetches mountain/peak zones (~30s)
 npm run dev
 ```
 
@@ -134,8 +147,9 @@ src/
   data/la-bbox.ts          # LA viewport constants
 ```
 
-## What's next (v0.9)
+## What's next (v1.0)
 
-- Geographic realism: terrain, rivers, scenarios as overlays/constraints
-- Pick-your-own scenario at game start (Olympics 2028, Pacific Electric)
-- Visual rendering of corridor overlays (semi-transparent rail/freeway hints)
+- Bay Area as second region (full pipeline replication: BART/Caltrain/Muni
+  GTFS, street graph, places, corridors)
+- Save/load slots so progress survives across sessions
+- Statewide rail (HSR, Amtrak California)

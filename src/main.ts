@@ -7,6 +7,7 @@ import { startEvents } from "./sim/events";
 import { startGoalTracker } from "./sim/goal";
 import { loadPlaces } from "./sim/ridership";
 import { loadCorridors } from "./map/corridors";
+import { loadTerrain } from "./map/terrain";
 
 const mapEl = document.getElementById("map");
 if (!mapEl) throw new Error("#map element not found");
@@ -17,6 +18,7 @@ startEvents();
 startGoalTracker();
 void loadPlaces();
 void loadCorridors();
+void loadTerrain();
 void initMap(mapEl);
 
 // Helpful for poking at game state in the browser devtools.
@@ -31,6 +33,6 @@ import { getDate, setSpeed } from "./game/clock";
 
 // eslint-disable-next-line no-console
 console.log(
-  "[CA Transit Builder] v0.8 — right-of-way discounts, construction options, " +
-    "live ridership preview, fare hike controls, mayor turnover.",
+  "[CA Transit Builder] v0.9 — visual corridor overlay, terrain build penalties, " +
+    "ocean constraints, scenario picker, polished bond modal.",
 );

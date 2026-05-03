@@ -5,7 +5,7 @@
 // the player's route polyline at fixed intervals and checking each sample
 // point's distance to corridor segments via a uniform-grid spatial index.
 
-interface CorridorFeature {
+export interface CorridorFeature {
   kind: "rail" | "freeway";
   coords: [number, number][];
 }
@@ -16,7 +16,12 @@ interface CorridorsFile {
 }
 
 let LOADED = false;
+let FEATURES: CorridorFeature[] = [];
 let SEGMENTS: { kind: "rail" | "freeway"; a: [number, number]; b: [number, number] }[] = [];
+
+export function getCorridorFeatures(): CorridorFeature[] {
+  return FEATURES;
+}
 // Spatial index: cell key → indices into SEGMENTS
 let GRID: Map<string, number[]> = new Map();
 const CELL_DEG = 0.005; // ~550m at LA latitude
@@ -33,6 +38,7 @@ export async function loadCorridors(): Promise<void> {
     const res = await fetch("/la-corridors.json");
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = (await res.json()) as CorridorsFile;
+    FEATURES = data.features;
     SEGMENTS = [];
     for (const f of data.features) {
       for (let i = 0; i + 1 < f.coords.length; i++) {

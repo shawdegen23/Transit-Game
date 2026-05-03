@@ -10,6 +10,7 @@ import { nearestNode, shortestPath } from "../map/streetGraph";
 import { getDate } from "./clock";
 import { estimateRidership as estimateDensityRidership } from "../sim/ridership";
 import { computeRowOverlap, constructionDiscount } from "../map/corridors";
+import { computeTerrainShare, terrainPenalty } from "../map/terrain";
 
 const EARTH_RADIUS_MI = 3958.8;
 const M_PER_MI = 1609.344;
@@ -95,12 +96,14 @@ export function buildSegment(
   const { railShare, freewayShare } = computeRowOverlap(fullPath);
   const rowDiscount = constructionDiscount(railShare, freewayShare);
   const optMults = optionMults(opts);
+  const terrainShare = computeTerrainShare(fullPath);
+  const terrain = terrainPenalty(modeId, terrainShare);
 
-  const capitalCostM = baseCost * rowDiscount.costMult * optMults.costMult;
+  const capitalCostM = baseCost * rowDiscount.costMult * optMults.costMult * terrain.costMult;
   const baseBuildMonths = estimateBuildMonths(modeId, baseCost);
   const buildMonths = Math.max(
     1,
-    Math.round(baseBuildMonths * rowDiscount.timeMult * optMults.timeMult),
+    Math.round(baseBuildMonths * rowDiscount.timeMult * optMults.timeMult * terrain.timeMult),
   );
 
   const date = getDate();
@@ -122,6 +125,7 @@ export function buildSegment(
     transferCount: 0,
     railShare,
     freewayShare,
+    terrainShare,
     opts: { ...opts },
   };
 }
@@ -254,6 +258,7 @@ export interface RoutePreview {
   dailyRiders: number;
   railShare: number;
   freewayShare: number;
+  terrainShare: number;
 }
 
 export function previewRoute(
@@ -262,21 +267,23 @@ export function previewRoute(
   opts: ConstructionOpts = defaultOpts,
 ): RoutePreview {
   if (stations.length < 2) {
-    return { lengthMi: 0, capitalCostM: 0, estBuildMonths: 0, dailyRiders: 0, railShare: 0, freewayShare: 0 };
+    return { lengthMi: 0, capitalCostM: 0, estBuildMonths: 0, dailyRiders: 0, railShare: 0, freewayShare: 0, terrainShare: 0 };
   }
   const mode = getMode(modeId);
   let len = 0;
   for (let i = 0; i + 1 < stations.length; i++) {
     len += haversineMi(stations[i], stations[i + 1]);
   }
-  const adjLen = len * 1.3; // street-following is usually 1.2-1.4x crow
+  const adjLen = len * 1.3;
   const baseCost = adjLen * mode.capitalCostPerMileM;
   const { railShare, freewayShare } = computeRowOverlap(stations);
   const rowDiscount = constructionDiscount(railShare, freewayShare);
   const optMults = optionMults(opts);
-  const cost = baseCost * rowDiscount.costMult * optMults.costMult;
+  const terrainShare = computeTerrainShare(stations);
+  const terrain = terrainPenalty(modeId, terrainShare);
+  const cost = baseCost * rowDiscount.costMult * optMults.costMult * terrain.costMult;
   const baseMonths = estimateBuildMonths(modeId, baseCost);
-  const months = Math.max(1, Math.round(baseMonths * rowDiscount.timeMult * optMults.timeMult));
+  const months = Math.max(1, Math.round(baseMonths * rowDiscount.timeMult * optMults.timeMult * terrain.timeMult));
   const riders = estimateDensityRidership(mode, stations, adjLen);
   return {
     lengthMi: adjLen,
@@ -285,5 +292,6 @@ export function previewRoute(
     dailyRiders: riders,
     railShare,
     freewayShare,
+    terrainShare,
   };
 }

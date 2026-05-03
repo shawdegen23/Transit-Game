@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>California Transit Builder — v0.8 (Los Angeles)</title>
+    <title>California Transit Builder — v0.9 (Los Angeles)</title>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
     <style>
       :root {
@@ -482,10 +482,18 @@
         </div>
         <div class="hint">
           <strong>Click to place stations</strong> along your line — buttons
-          to finish/cancel appear at the bottom of the screen.
-          <strong>Z</strong> undoes the last station. Stations within ~200m
-          of another line become transfers (ridership boost).
+          to finish/cancel appear at the bottom. <strong>Z</strong> undoes
+          the last station. Faint <span style="color:#78c88c">green lines</span>
+          mark existing rail corridors (huge build discount). Faint
+          <span style="color:#b4b4c8">grey lines</span> are freeways
+          (smaller discount). Mountains add a build penalty.
         </div>
+        <button id="toggle-corridors" style="
+          width: 100%; margin-top: 6px; padding: 5px;
+          background: var(--panel-2); border: 1px solid var(--border);
+          color: var(--muted); border-radius: 4px; font-size: 11px;
+          cursor: pointer;
+        ">Toggle corridor overlay</button>
 
         <h3 style="margin-top:14px;">Existing Metro Rail</h3>
         <div id="baseline-legend" class="route-list" style="max-height:none;">

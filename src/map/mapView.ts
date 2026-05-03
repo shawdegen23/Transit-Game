@@ -14,6 +14,8 @@ import {
   type BaselineCollection,
 } from "./baselineNetwork";
 import { loadStreetGraph, nearestNode } from "./streetGraph";
+import { getCorridorFeatures, type CorridorFeature } from "./corridors";
+import { isInOcean } from "./terrain";
 
 const BASEMAP_STYLE =
   "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
@@ -23,6 +25,7 @@ let streetsReady = false;
 let streetNodes: [number, number][] = [];
 let hoverPos: [number, number] | null = null;
 let forceRerender: () => void = () => {};
+let showCorridors = true;
 
 export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
   const map = new maplibregl.Map({
@@ -64,6 +67,26 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
 
   subscribe((s) => {
     const layers: unknown[] = [];
+
+    // Corridor overlay (rail + freeway hints) — bottom of stack.
+    if (showCorridors) {
+      const corridors = getCorridorFeatures();
+      if (corridors.length > 0) {
+        layers.push(
+          new PathLayer({
+            id: "corridors",
+            data: corridors,
+            getPath: (d: CorridorFeature) => d.coords,
+            getColor: (d: CorridorFeature) =>
+              d.kind === "rail" ? [120, 200, 140, 80] : [180, 180, 200, 50],
+            getWidth: (d: CorridorFeature) => (d.kind === "rail" ? 3 : 2),
+            widthUnits: "pixels",
+            capRounded: true,
+            jointRounded: true,
+          }),
+        );
+      }
+    }
 
     // Existing rail network — drawn UNDER player routes.
     if (baseline && baseline.features.length > 0) {
@@ -238,6 +261,12 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
   // Re-render trigger for hover-only changes (hoverPos isn't in game state).
   forceRerender = () => setState({});
 
+  // Expose corridor toggle to HUD.
+  (window as unknown as { toggleCorridors: () => void }).toggleCorridors = () => {
+    showCorridors = !showCorridors;
+    forceRerender();
+  };
+
   function snapLocal(p: [number, number]): [number, number] {
     if (!streetsReady) return p;
     const idx = nearestNode(p[0], p[1]);
@@ -286,6 +315,10 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
 
   map.on("click", (e) => {
     const raw: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+    if (isInOcean(raw[0], raw[1])) {
+      flashToast("Can't build in the Pacific Ocean.");
+      return;
+    }
     const lngLat = snapLocal(raw);
     const s = getState();
     const now = Date.now();
@@ -338,5 +371,28 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
   });
 
   return map;
+}
+
+// Lightweight inline toast for ocean-click feedback (separate from goal toasts).
+let flashTimer: number | null = null;
+function flashToast(msg: string): void {
+  let el = document.getElementById("flash-toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "flash-toast";
+    el.style.cssText = `
+      position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
+      background: rgba(248, 81, 73, 0.95); color: white; padding: 8px 14px;
+      border-radius: 6px; font-size: 12px; z-index: 200;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    `;
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.opacity = "1";
+  if (flashTimer !== null) clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => {
+    if (el) el.style.opacity = "0";
+  }, 1800) as unknown as number;
 }
 

@@ -9,8 +9,10 @@ import { onMonth, getDate } from "../game/clock";
 import { totalDailyRiders } from "../game/routes";
 import { getState, setState } from "../game/state";
 
-export const RIDERSHIP_TARGET = 500_000;
-export const GOAL_DEADLINE_YEAR = 2040;
+// These are now defaults — actual target/deadline come from the active
+// scenario (state.ridershipTarget, state.deadlineYear).
+export const DEFAULT_RIDERSHIP_TARGET = 500_000;
+export const DEFAULT_DEADLINE_YEAR = 2040;
 export const MIN_APPROVAL = 25;
 export const INSOLVENCY_GRACE_MONTHS = 6;
 
@@ -65,13 +67,15 @@ export function startGoalTracker(): void {
 
     const riders = totalDailyRiders();
     const date = getDate();
+    const target = s.ridershipTarget;
+    const deadline = s.deadlineYear;
 
-    if (!hitTarget && riders >= RIDERSHIP_TARGET) {
+    if (!hitTarget && riders >= target) {
       hitTarget = true;
       milestoneToast = "won";
     }
 
-    if (!missedDeadline && !hitTarget && date.year >= GOAL_DEADLINE_YEAR) {
+    if (!missedDeadline && !hitTarget && date.year >= deadline) {
       missedDeadline = true;
       milestoneToast = "missed_deadline";
     }

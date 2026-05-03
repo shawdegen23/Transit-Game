@@ -135,13 +135,26 @@ The game should reward the kinds of decisions real planners face:
   approval baseline and CIG/TIRCP grant probabilities (±10%). Visible
   as a pill in the topbar.
 
-### v0.9
-- Geographic realism: terrain, rivers, existing rail corridors as overlays
-  and as bonuses/constraints.
-- Multiple scenarios: Olympics 2028, Pacific Electric restoration, etc.
+### v0.9 (current)
+- **Visual corridor overlay**: existing rail (faint green) and freeway
+  (faint grey) lines render on the map so players can see ROW discount
+  opportunities. Toggleable in the toolbar.
+- **Terrain build penalties**: 401 mountain zones (OSM peaks + LA's major
+  ranges hand-augmented). Routes that pass through mountainous terrain
+  cost more and take longer, scaled by mode (HRT tunneling: up to +85%;
+  bus: ~+5%). Surfaces as a "Terrain %" line in the pending panel.
+- **Pacific Ocean as hard constraint**: clicks west of LA's coastline
+  bounce with a "can't build in the ocean" toast.
+- **Scenario picker**: game start modal with 4 scenarios — Sandbox 2026,
+  Olympics Sprint 2028, Pacific Electric Restoration, LAX Express by
+  Olympics. Each sets starting capital, deadline, ridership target.
+- **Bond modal**: replaced the prompt() with a real slider modal showing
+  live monthly debt service and total repaid as you adjust principal.
 
 ### v1.0
 - Bay Area as second region (full pipeline replication).
+- Statewide expansion: HSR, Amtrak California, regional rail.
+- Save/load slot, named savegames.
 
 ### v0.3
 - Agencies: LA Metro, LADOT, Foothill Transit, Big Blue Bus, etc., each with
@@ -286,8 +299,8 @@ few iterations.
 | v0.6    | Player-placed stations, transfer detection + ridership bonus      |
 | v0.7    | Soft deadline, route deletion, CIG/TIRCP/bonds/TOD/NIMBY, ballot fatigue |
 | v0.8    | ROW discounts, construction options, live preview, fares, mayor turnover |
-| v0.9    | Geographic realism, scenarios                                     |
-| v1.0    | Bay Area as second region                                         |
+| v0.9    | Corridor overlay, terrain penalties, ocean constraint, scenarios, bond modal |
+| v1.0    | Bay Area as second region, statewide expansion, save/load         |
 | v0.5    | Multi-agency, voter approval, simple political events             |
 | v0.6    | Save/load, scenarios                                              |
 | v1.0    | Bay Area + statewide expansion, HSR, polished UI                  |

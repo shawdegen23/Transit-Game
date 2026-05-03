@@ -1,7 +1,7 @@
 {
   "name": "ca-transit-builder",
   "private": true,
-  "version": "0.8.0",
+  "version": "0.9.0",
   "type": "module",
   "description": "A realistic public transit builder game set in California.",
   "scripts": {
@@ -11,7 +11,8 @@
     "gtfs": "node scripts/fetch-gtfs.mjs",
     "streets": "node scripts/fetch-streets.mjs",
     "places": "node scripts/fetch-places.mjs",
-    "corridors": "node scripts/fetch-corridors.mjs"
+    "corridors": "node scripts/fetch-corridors.mjs",
+    "terrain": "node scripts/fetch-terrain.mjs"
   },
   "dependencies": {
     "@deck.gl/core": "^9.0.27",

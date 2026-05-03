@@ -33,11 +33,10 @@ import {
 } from "../sim/events";
 import { previewMonthlyFlows } from "../sim/tick";
 import {
-  RIDERSHIP_TARGET,
-  GOAL_DEADLINE_YEAR,
   clearMilestoneToast,
   type GameOutcome,
 } from "../sim/goal";
+import { SCENARIOS, saveScenarioId } from "../sim/scenarios";
 
 function fmtMoneyM(millions: number): string {
   const sign = millions < 0 ? "-" : "";
@@ -134,6 +133,12 @@ export function initHud(): void {
   document.getElementById("fare-up")!.addEventListener("click", () => adjustFare(0.25));
   document.getElementById("fare-down")!.addEventListener("click", () => adjustFare(-0.25));
 
+  // Corridor overlay toggle
+  document.getElementById("toggle-corridors")!.addEventListener("click", () => {
+    const t = (window as unknown as { toggleCorridors?: () => void }).toggleCorridors;
+    if (t) t();
+  });
+
   // ---- Clock subscription ----
   subscribeClock((cs) => {
     el("stat-date").textContent = formatDate(cs.date);
@@ -191,13 +196,13 @@ export function initHud(): void {
       ? `🏗 ${cc} · California Transit Builder — v0.8`
       : "California Transit Builder — v0.8 (Los Angeles)";
 
-    // Goal bar — once hit, show "DONE" styling.
+    // Goal bar — uses scenario's target/deadline.
     const riders = totalDailyRiders();
-    const pct = Math.min(100, (riders / RIDERSHIP_TARGET) * 100);
+    const pct = Math.min(100, (riders / s.ridershipTarget) * 100);
     el<HTMLDivElement>("goal-bar-fill").style.width = `${pct.toFixed(1)}%`;
     const labelText = s.goal.hitTarget
       ? `<span class="target">${riders.toLocaleString()}</span> riders ✓ Goal achieved (sandbox mode)`
-      : `<span class="target">${riders.toLocaleString()}</span> / ${RIDERSHIP_TARGET.toLocaleString()} riders by Jan ${GOAL_DEADLINE_YEAR}`;
+      : `<span class="target">${riders.toLocaleString()}</span> / ${s.ridershipTarget.toLocaleString()} riders by Jan ${s.deadlineYear}`;
     el("goal-label").innerHTML = labelText;
 
     // Pending route panel
@@ -206,9 +211,11 @@ export function initHud(): void {
     // Funding panel
     renderFundingPanel(s);
 
-    // Modal: only for HARD game-over outcomes (lost_approval, lost_bankrupt).
+    // Modal: scenario picker > game-over > pending events.
     const modalRoot = el<HTMLDivElement>("modal-root");
-    if (s.goal.outcome) {
+    if (!s.scenarioPicked) {
+      renderScenarioPicker(modalRoot);
+    } else if (s.goal.outcome) {
       renderEndModal(modalRoot, s.goal.outcome, riders);
     } else if (s.events.pending.length > 0) {
       const ev = s.events.pending[0];
@@ -240,6 +247,10 @@ function renderPendingPanel(s: ReturnType<typeof getState>): void {
   const rowDetail = preview.railShare > 0 || preview.freewayShare > 0
     ? `<div class="stat-mini"><span class="label">Right-of-way</span><span class="value" style="color:var(--good)">${rowPct}%</span></div>`
     : "";
+  const terrainPct = (preview.terrainShare * 100).toFixed(0);
+  const terrainDetail = preview.terrainShare > 0.05
+    ? `<div class="stat-mini"><span class="label">Terrain</span><span class="value" style="color:var(--bad)">${terrainPct}%</span></div>`
+    : "";
   root.innerHTML = `
     <div class="pending-panel">
       <div class="stat-mini"><span class="label">Stations</span><span class="value">${s.pending.stations.length}</span></div>
@@ -248,6 +259,7 @@ function renderPendingPanel(s: ReturnType<typeof getState>): void {
       <div class="stat-mini"><span class="label">Build time</span><span class="value">${preview.estBuildMonths} mo</span></div>
       <div class="stat-mini"><span class="label">Est. riders</span><span class="value">${preview.dailyRiders.toLocaleString()}/d</span></div>
       ${rowDetail}
+      ${terrainDetail}
       <label class="opt-toggle ${opts.designBuild ? "active" : ""}">
         <input type="checkbox" id="opt-db" ${opts.designBuild ? "checked" : ""} />
         Design-build
@@ -335,11 +347,7 @@ function renderFundingPanel(s: ReturnType<typeof getState>): void {
     applyForTIRCP(r.id);
   });
   document.getElementById("issue-bond")!.addEventListener("click", () => {
-    const ans = prompt("Issue bond — principal in millions USD (e.g., 500):", "500");
-    if (!ans) return;
-    const v = Number(ans);
-    if (!Number.isFinite(v) || v <= 0) return;
-    issueBond(v);
+    openBondModal();
   });
 
   // In-flight applications + active bonds summary
@@ -453,6 +461,123 @@ function renderNIMBYModal(root: HTMLElement, ev: NIMBYEvent): void {
   document.getElementById("nimby-outreach")!.addEventListener("click", () => resolveEvent(ev.id, "outreach"));
 }
 
+function openBondModal(): void {
+  const s = getState();
+  const apr = Math.max(0.025, 0.10 - 0.0009 * s.approvalPct);
+  const root = el<HTMLDivElement>("modal-root");
+  // Save what's currently in the modal so we can restore after.
+  const previousKind = root.dataset.kind ?? "";
+  root.dataset.kind = "bond";
+  root.innerHTML = `
+    <div class="modal-overlay">
+      <div class="modal">
+        <h2>Issue bond</h2>
+        <div class="subtitle">Borrow now, repay over 20 years. Rate: ${(apr * 100).toFixed(2)}% APR (scales with approval).</div>
+        <div style="margin: 16px 0;">
+          <label style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 12px; color: var(--muted); width: 70px;">Principal</span>
+            <input type="range" id="bond-slider" min="100" max="3000" step="50" value="500" style="flex: 1;" />
+            <span class="v" id="bond-amount" style="font-weight: 700; font-variant-numeric: tabular-nums; min-width: 70px; text-align: right;">$500M</span>
+          </label>
+        </div>
+        <div class="stat-row"><span>Cash now</span><span class="v" id="bond-cash">+$500M</span></div>
+        <div class="stat-row"><span>Monthly debt service (20yr)</span><span class="v" id="bond-monthly">−$3.3M/mo</span></div>
+        <div class="stat-row"><span>Total repaid</span><span class="v" id="bond-total">$792M</span></div>
+        <div class="modal-actions">
+          <button class="modal-btn" id="bond-cancel">Cancel</button>
+          <button class="modal-btn primary" id="bond-confirm">Issue bond</button>
+        </div>
+      </div>
+    </div>
+  `;
+  const slider = document.getElementById("bond-slider") as HTMLInputElement;
+  const amtEl = document.getElementById("bond-amount")!;
+  const cashEl = document.getElementById("bond-cash")!;
+  const monEl = document.getElementById("bond-monthly")!;
+  const totEl = document.getElementById("bond-total")!;
+
+  function update() {
+    const p = Number(slider.value);
+    const r = apr / 12;
+    const n = 240;
+    const monthly = (p * r) / (1 - Math.pow(1 + r, -n));
+    const total = monthly * n;
+    amtEl.textContent = `$${p}M`;
+    cashEl.textContent = `+$${p}M`;
+    monEl.textContent = `−$${monthly.toFixed(1)}M/mo`;
+    totEl.textContent = `$${total.toFixed(0)}M`;
+  }
+  slider.addEventListener("input", update);
+  update();
+
+  document.getElementById("bond-cancel")!.addEventListener("click", () => {
+    root.innerHTML = "";
+    root.dataset.kind = previousKind;
+  });
+  document.getElementById("bond-confirm")!.addEventListener("click", () => {
+    const p = Number(slider.value);
+    issueBond(p);
+    root.innerHTML = "";
+    root.dataset.kind = previousKind;
+  });
+}
+
+function renderScenarioPicker(root: HTMLElement): void {
+  // Don't re-render if already shown.
+  if (root.dataset.kind === "scenario") return;
+  root.dataset.kind = "scenario";
+
+  setSpeed(0); // freeze the clock until they pick
+
+  const cards = SCENARIOS.map((sc) => `
+    <button class="modal-btn scenario-card" data-id="${sc.id}" style="
+      display: block; width: 100%; text-align: left; margin-bottom: 8px;
+      padding: 10px 12px; background: var(--panel-2); border: 1px solid var(--border);
+      cursor: pointer; border-radius: 6px;">
+      <div style="font-weight: 700; font-size: 14px; color: var(--text);">${sc.label}</div>
+      <div style="font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.4;">${sc.description}</div>
+      <div style="font-size: 11px; color: var(--accent); margin-top: 6px;">
+        Goal: ${sc.ridershipTarget.toLocaleString()} riders by Jan ${sc.deadlineYear}
+        · Start capital: $${(sc.startCapitalM / 1000).toFixed(2)}B
+      </div>
+      <div style="font-size: 11px; color: var(--muted); margin-top: 4px; font-style: italic;">${sc.hint}</div>
+    </button>
+  `).join("");
+
+  root.innerHTML = `
+    <div class="modal-overlay">
+      <div class="modal" style="max-width: 600px;">
+        <h2>Pick a scenario</h2>
+        <div class="subtitle">Each scenario sets your starting budget, deadline, and ridership target. You can always change strategy mid-game.</div>
+        ${cards}
+      </div>
+    </div>
+  `;
+
+  root.querySelectorAll<HTMLButtonElement>(".scenario-card").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.id!;
+      applyScenario(id);
+      saveScenarioId(id);
+      root.dataset.kind = "";
+    });
+  });
+}
+
+function applyScenario(id: string): void {
+  const sc = SCENARIOS.find((s) => s.id === id);
+  if (!sc) return;
+  setState({
+    capitalBudgetM: sc.startCapitalM,
+    operatingBudgetM: sc.startOperatingM,
+    approvalPct: sc.startApproval,
+    ridershipTarget: sc.ridershipTarget,
+    deadlineYear: sc.deadlineYear,
+    scenarioId: sc.id,
+    scenarioPicked: true,
+  });
+}
+
 function renderEndModal(root: HTMLElement, outcome: GameOutcome, riders: number): void {
   if (root.dataset.outcome === outcome) return;
   root.dataset.outcome = outcome;
@@ -488,8 +613,8 @@ function renderToast(milestone: "won" | "missed_deadline"): void {
   const root = el<HTMLDivElement>("toast-root");
   const isGood = milestone === "won";
   const text = isGood
-    ? `🎉 You hit ${RIDERSHIP_TARGET.toLocaleString()} daily riders! Goal achieved — keep going for fun.`
-    : `${GOAL_DEADLINE_YEAR} arrived without hitting the goal. Sandbox continues — no game over.`;
+    ? `🎉 You hit ${getState().ridershipTarget.toLocaleString()} daily riders! Goal achieved — keep going for fun.`
+    : `${getState().deadlineYear} arrived without hitting the goal. Sandbox continues — no game over.`;
   root.innerHTML = `<div class="toast ${isGood ? "" : "bad"}">${text}</div>`;
   if (toastTimer !== null) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {

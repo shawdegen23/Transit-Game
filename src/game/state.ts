@@ -30,6 +30,8 @@ export interface RouteSegment {
   // Right-of-way overlap shares (0-1) and resulting discount.
   railShare: number;
   freewayShare: number;
+  // Terrain share (0-1): how much of the route runs through mountains.
+  terrainShare: number;
   // Construction options chosen at commit time.
   opts: ConstructionOpts;
 }
@@ -53,9 +55,13 @@ export interface GameState {
   goal: GoalState;
   bonds: Bond[];
   fareUSD: number;
-  // Current administration: -1 hostile, 0 neutral, +1 transit-friendly.
   adminBias: -1 | 0 | 1;
-  adminLabel: string; // e.g. "Mayor 2026-2030"
+  adminLabel: string;
+  scenarioId: string; // matches a Scenario.id
+  ridershipTarget: number;
+  deadlineYear: number;
+  // Has the player picked a scenario yet (controls game-start modal).
+  scenarioPicked: boolean;
 }
 
 type Listener = (s: GameState) => void;
@@ -75,6 +81,10 @@ const initialState: GameState = {
   fareUSD: 1.75,
   adminBias: 0,
   adminLabel: "Mayor 2026-2030 (neutral)",
+  scenarioId: "sandbox",
+  ridershipTarget: 500_000,
+  deadlineYear: 2040,
+  scenarioPicked: false,
 };
 
 let state: GameState = { ...initialState };
