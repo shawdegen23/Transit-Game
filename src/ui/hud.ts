@@ -133,11 +133,7 @@ export function initHud(): void {
   document.getElementById("fare-up")!.addEventListener("click", () => adjustFare(0.25));
   document.getElementById("fare-down")!.addEventListener("click", () => adjustFare(-0.25));
 
-  // Corridor overlay toggle
-  document.getElementById("toggle-corridors")!.addEventListener("click", () => {
-    const t = (window as unknown as { toggleCorridors?: () => void }).toggleCorridors;
-    if (t) t();
-  });
+  // (Corridor toggle is wired directly in mapView.ts via the floating button.)
 
   // ---- Clock subscription ----
   subscribeClock((cs) => {
@@ -251,6 +247,15 @@ function renderPendingPanel(s: ReturnType<typeof getState>): void {
   const terrainDetail = preview.terrainShare > 0.05
     ? `<div class="stat-mini"><span class="label">Terrain</span><span class="value" style="color:var(--bad)">${terrainPct}%</span></div>`
     : "";
+  const landmarkBoostDetail = preview.landmarkBoostPct > 0
+    ? `<div class="stat-mini"><span class="label">Landmark boost</span><span class="value" style="color:var(--good)">+${preview.landmarkBoostPct}%</span></div>`
+    : "";
+  const landmarkPenaltyDetail = preview.landmarkPenaltyPct > 0
+    ? `<div class="stat-mini"><span class="label">Airport penalty</span><span class="value" style="color:var(--bad)">+${preview.landmarkPenaltyPct}%</span></div>`
+    : "";
+  const servedDetail = preview.servedNames.length > 0
+    ? `<div class="stat-mini" style="max-width:200px;"><span class="label">Serves</span><span class="value" style="font-size:11px;font-weight:500;line-height:1.3;">${preview.servedNames.slice(0, 4).join(", ")}${preview.servedNames.length > 4 ? "…" : ""}</span></div>`
+    : "";
   root.innerHTML = `
     <div class="pending-panel">
       <div class="stat-mini"><span class="label">Stations</span><span class="value">${s.pending.stations.length}</span></div>
@@ -260,6 +265,9 @@ function renderPendingPanel(s: ReturnType<typeof getState>): void {
       <div class="stat-mini"><span class="label">Est. riders</span><span class="value">${preview.dailyRiders.toLocaleString()}/d</span></div>
       ${rowDetail}
       ${terrainDetail}
+      ${landmarkBoostDetail}
+      ${landmarkPenaltyDetail}
+      ${servedDetail}
       <label class="opt-toggle ${opts.designBuild ? "active" : ""}">
         <input type="checkbox" id="opt-db" ${opts.designBuild ? "checked" : ""} />
         Design-build

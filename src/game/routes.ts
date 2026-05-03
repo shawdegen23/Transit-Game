@@ -11,6 +11,7 @@ import { getDate } from "./clock";
 import { estimateRidership as estimateDensityRidership } from "../sim/ridership";
 import { computeRowOverlap, constructionDiscount } from "../map/corridors";
 import { computeTerrainShare, terrainPenalty } from "../map/terrain";
+import { landmarkRidershipMultiplier, landmarkBuildPenalty, landmarksServed } from "../map/landmarks";
 
 const EARTH_RADIUS_MI = 3958.8;
 const M_PER_MI = 1609.344;
@@ -98,17 +99,31 @@ export function buildSegment(
   const optMults = optionMults(opts);
   const terrainShare = computeTerrainShare(fullPath);
   const terrain = terrainPenalty(modeId, terrainShare);
+  const landmarkPen = landmarkBuildPenalty(fullPath);
 
-  const capitalCostM = baseCost * rowDiscount.costMult * optMults.costMult * terrain.costMult;
+  const capitalCostM =
+    baseCost *
+    rowDiscount.costMult *
+    optMults.costMult *
+    terrain.costMult *
+    landmarkPen.costMult;
   const baseBuildMonths = estimateBuildMonths(modeId, baseCost);
   const buildMonths = Math.max(
     1,
-    Math.round(baseBuildMonths * rowDiscount.timeMult * optMults.timeMult * terrain.timeMult),
+    Math.round(
+      baseBuildMonths *
+        rowDiscount.timeMult *
+        optMults.timeMult *
+        terrain.timeMult *
+        landmarkPen.timeMult,
+    ),
   );
 
   const date = getDate();
   const s = getState();
-  const baseRiders = estimateDensityRidership(mode, stations, totalLenMi);
+  const baseRiders =
+    estimateDensityRidership(mode, stations, totalLenMi) *
+    landmarkRidershipMultiplier(stations);
 
   return {
     id: s.nextRouteId,
@@ -188,7 +203,9 @@ export function recomputeTransferStats(): void {
 
   const updated = s.routes.map((r) => {
     const mode = getMode(r.mode);
-    const base = estimateDensityRidership(mode, r.stations, r.lengthMi);
+    const base =
+      estimateDensityRidership(mode, r.stations, r.lengthMi) *
+      landmarkRidershipMultiplier(r.stations);
     const t = transfersById.get(r.id) ?? 0;
     const dailyRiders = Math.round(base * transferBonus(t));
     return { ...r, dailyRiders, transferCount: t };
@@ -259,6 +276,9 @@ export interface RoutePreview {
   railShare: number;
   freewayShare: number;
   terrainShare: number;
+  landmarkBoostPct: number;     // 0-150, how much ridership boost from landmarks
+  landmarkPenaltyPct: number;   // 0-100, how much cost penalty from sensitive landmarks
+  servedNames: string[];        // names of landmarks the route serves
 }
 
 export function previewRoute(
@@ -267,7 +287,11 @@ export function previewRoute(
   opts: ConstructionOpts = defaultOpts,
 ): RoutePreview {
   if (stations.length < 2) {
-    return { lengthMi: 0, capitalCostM: 0, estBuildMonths: 0, dailyRiders: 0, railShare: 0, freewayShare: 0, terrainShare: 0 };
+    return {
+      lengthMi: 0, capitalCostM: 0, estBuildMonths: 0, dailyRiders: 0,
+      railShare: 0, freewayShare: 0, terrainShare: 0,
+      landmarkBoostPct: 0, landmarkPenaltyPct: 0, servedNames: [],
+    };
   }
   const mode = getMode(modeId);
   let len = 0;
@@ -281,17 +305,37 @@ export function previewRoute(
   const optMults = optionMults(opts);
   const terrainShare = computeTerrainShare(stations);
   const terrain = terrainPenalty(modeId, terrainShare);
-  const cost = baseCost * rowDiscount.costMult * optMults.costMult * terrain.costMult;
+  const landmarkPen = landmarkBuildPenalty(stations);
+  const landmarkMult = landmarkRidershipMultiplier(stations);
+  const cost =
+    baseCost *
+    rowDiscount.costMult *
+    optMults.costMult *
+    terrain.costMult *
+    landmarkPen.costMult;
   const baseMonths = estimateBuildMonths(modeId, baseCost);
-  const months = Math.max(1, Math.round(baseMonths * rowDiscount.timeMult * optMults.timeMult * terrain.timeMult));
-  const riders = estimateDensityRidership(mode, stations, adjLen);
+  const months = Math.max(
+    1,
+    Math.round(
+      baseMonths *
+        rowDiscount.timeMult *
+        optMults.timeMult *
+        terrain.timeMult *
+        landmarkPen.timeMult,
+    ),
+  );
+  const riders = estimateDensityRidership(mode, stations, adjLen) * landmarkMult;
+  const served = landmarksServed(stations);
   return {
     lengthMi: adjLen,
     capitalCostM: cost,
     estBuildMonths: months,
-    dailyRiders: riders,
+    dailyRiders: Math.round(riders),
     railShare,
     freewayShare,
     terrainShare,
+    landmarkBoostPct: Math.round((landmarkMult - 1) * 100),
+    landmarkPenaltyPct: Math.round((landmarkPen.costMult - 1) * 100),
+    servedNames: served.slice(0, 8).map((l) => l.name),
   };
 }

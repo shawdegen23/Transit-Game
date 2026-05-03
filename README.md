@@ -7,7 +7,7 @@ California maps — starting with Los Angeles.
 
 See [DESIGN.md](./DESIGN.md) for the full vision, scope, and roadmap.
 
-## Status: v0.9 (geography + scenarios)
+## Status: v1.0 (SoCal + landmarks)
 
 What's playable today:
 - Real isometric map of Los Angeles (MapLibre + deck.gl, dark basemap)
@@ -76,6 +76,14 @@ What's playable today:
   budget, deadline, and ridership target.
 - **Bond modal** with a slider, live monthly debt service preview, and
   total repayment estimate.
+- **SoCal expansion**: now covers LA County + Orange County + Ventura/
+  Oxnard. Build all the way from Disneyland to Oxnard.
+- **Landmarks**: 616 named landmarks across SoCal — airports (LAX, John
+  Wayne, Burbank, Ontario), universities (UCLA, USC, Caltech, UC Irvine),
+  theme parks (Disney, Universal, Magic Mountain), stadiums (SoFi, Rose
+  Bowl, Dodger), hospitals, and malls. Stations near landmarks get a
+  ridership boost; routes too close to airports cost more (FAA, runway
+  proximity). Toggle visibility with `L` key or the on-map button.
 
 ## Run it
 
@@ -88,6 +96,7 @@ npm run streets    # one-time: fetches the LA County street graph (~3-7 min)
 npm run places     # one-time: fetches LA-area OSM population centers
 npm run corridors  # one-time: fetches LA-area rail + freeway corridors (~3-7 min)
 npm run terrain    # one-time: fetches mountain/peak zones (~30s)
+npm run landmarks  # one-time: fetches major landmarks (~30s)
 npm run dev
 ```
 
@@ -147,9 +156,9 @@ src/
   data/la-bbox.ts          # LA viewport constants
 ```
 
-## What's next (v1.0)
+## What's next (v1.1)
 
-- Bay Area as second region (full pipeline replication: BART/Caltrain/Muni
-  GTFS, street graph, places, corridors)
+- Push bbox south to San Diego + east to Inland Empire / Palm Springs
 - Save/load slots so progress survives across sessions
+- Bay Area as second region (BART/Caltrain/Muni GTFS, street graph, etc.)
 - Statewide rail (HSR, Amtrak California)

@@ -31,13 +31,12 @@ import { readFileSync, rmSync, existsSync } from "node:fs";
 
 const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
 
-// Full LA County bbox. We chunk this into smaller tiles below to avoid
-// per-query timeouts on Overpass.
-const BBOX = { west: -118.95, south: 33.65, east: -117.6, north: 34.4 };
+// SoCal bbox: LA County + Orange County + Ventura/Oxnard. San Diego and
+// far Inland Empire are deferred to v1.1 to keep the data volume reasonable.
+const BBOX = { west: -119.4, south: 33.4, east: -117.4, north: 34.6 };
 
-// Tile the bbox into a grid. 4x3 = 12 tiles is small enough per query that
-// Overpass reliably finishes each in <30s; total wall time ~5-7 minutes.
-const TILES_X = 4;
+// Larger bbox needs more tiles to keep per-query Overpass timeouts safe.
+const TILES_X = 5;
 const TILES_Y = 3;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

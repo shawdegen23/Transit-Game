@@ -1,19 +1,19 @@
-// Starting viewport for the Los Angeles MVP.
-// Centered roughly on Union Station / downtown LA, with an isometric pitch.
+// v1.0 starting viewport: centered between LA and OC so the player sees
+// Ventura/Oxnard, San Fernando Valley, downtown LA, OC, and the coast.
 export const LA_INITIAL_VIEW = {
-  longitude: -118.2437,
-  latitude: 34.0522,
-  zoom: 11,
-  pitch: 50,
-  bearing: -20,
-  minZoom: 9,
+  longitude: -118.10,
+  latitude: 33.90,
+  zoom: 9.4,
+  pitch: 45,
+  bearing: -15,
+  minZoom: 8,
   maxZoom: 18,
 } as const;
 
-// Approximate bounding box for LA County (used later for clipping data fetches).
+// SoCal bbox (matches the data fetch scripts).
 export const LA_BBOX = {
-  west: -118.95,
-  south: 33.65,
-  east: -117.6,
-  north: 34.4,
+  west: -119.4,
+  south: 33.4,
+  east: -117.4,
+  north: 34.6,
 } as const;

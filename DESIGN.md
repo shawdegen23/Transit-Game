@@ -151,10 +151,31 @@ The game should reward the kinds of decisions real planners face:
 - **Bond modal**: replaced the prompt() with a real slider modal showing
   live monthly debt service and total repaid as you adjust principal.
 
-### v1.0
+### v1.0 (current)
+- **SoCal expansion**: bbox now covers LA County + Orange County + Ventura/
+  Oxnard. Streets graph is 47k junctions / 77k edges, corridors include
+  the OC/IE freight rail network. Default viewport recenters to show all
+  three regions in one frame.
+- **Landmark system**: 616 OSM landmarks (airports, universities, colleges,
+  hospitals, stadiums, theme parks, malls) with hand-augmented majors
+  (LAX, SoFi, Disney, Universal, UCLA, USC, Caltech, UC Irvine, Rose Bowl,
+  Dodger Stadium). Each landmark:
+  - **Boosts ridership** for stations within ~800m, scaled by magnitude
+    (LAX, Disney, UCLA, USC at full strength → up to +150% ridership on
+    landmark-served lines)
+  - **Penalizes construction** for routes within ~500m of sensitive sites
+    (airports up to +70% cost, +42% time near LAX)
+- **Map landmark icons**: colored dots by category (gold airports, purple
+  universities, red hospitals, cyan stadiums, pink theme parks). Toggle
+  with the `L` key or the on-map button.
+- **Pending panel** now shows landmark boost %, airport penalty %, and
+  the names of landmarks the route would serve.
+
+### v1.1 / Future
+- Push bbox south to San Diego, east to Inland Empire (Palm Springs).
 - Bay Area as second region (full pipeline replication).
-- Statewide expansion: HSR, Amtrak California, regional rail.
-- Save/load slot, named savegames.
+- Statewide rail (HSR, Amtrak California, regional).
+- Save/load slots.
 
 ### v0.3
 - Agencies: LA Metro, LADOT, Foothill Transit, Big Blue Bus, etc., each with
@@ -300,7 +321,8 @@ few iterations.
 | v0.7    | Soft deadline, route deletion, CIG/TIRCP/bonds/TOD/NIMBY, ballot fatigue |
 | v0.8    | ROW discounts, construction options, live preview, fares, mayor turnover |
 | v0.9    | Corridor overlay, terrain penalties, ocean constraint, scenarios, bond modal |
-| v1.0    | Bay Area as second region, statewide expansion, save/load         |
+| v1.0    | SoCal expansion (+OC +Ventura), landmarks system (LAX, Disney, UCLA, etc.) |
+| v1.1+   | San Diego + Inland Empire bbox, Bay Area, statewide                |
 | v0.5    | Multi-agency, voter approval, simple political events             |
 | v0.6    | Save/load, scenarios                                              |
 | v1.0    | Bay Area + statewide expansion, HSR, polished UI                  |

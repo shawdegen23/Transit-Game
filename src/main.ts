@@ -33,6 +33,7 @@ import { getDate, setSpeed } from "./game/clock";
 
 // eslint-disable-next-line no-console
 console.log(
-  "[CA Transit Builder] v0.9 — visual corridor overlay, terrain build penalties, " +
-    "ocean constraints, scenario picker, polished bond modal.",
+  "[CA Transit Builder] v1.0 — SoCal expansion (+OC +Ventura), landmarks " +
+    "(LAX, UCLA, Disney, stadiums, hospitals) with ridership boosts and " +
+    "airport build penalties.",
 );

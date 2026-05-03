@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>California Transit Builder — v0.9 (Los Angeles)</title>
+    <title>California Transit Builder — v1.0 (SoCal)</title>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
     <style>
       :root {
@@ -327,6 +327,43 @@
       }
       .row-bar .rail-fill { height: 100%; background: var(--good); }
 
+      /* Floating map toggles (bottom-left of map) */
+      .map-toggle {
+        position: absolute;
+        left: 16px;
+        bottom: 24px;
+        z-index: 11;
+        display: flex; align-items: center; gap: 8px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        cursor: pointer;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+        user-select: none;
+        transition: border-color 0.15s, color 0.15s;
+      }
+      .map-toggle:hover { border-color: var(--accent); color: var(--text); }
+      .map-toggle.on { color: var(--good); border-color: var(--good); }
+      .map-toggle .swatch-line {
+        display: inline-block;
+        width: 18px; height: 3px;
+        border-radius: 2px;
+        background: #78c88c;
+      }
+      .map-toggle .kbd {
+        display: inline-block;
+        padding: 1px 5px;
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        font-size: 10px;
+        color: var(--muted);
+      }
+
       /* Goal bar across bottom of topbar */
       .goal-bar {
         position: absolute;
@@ -475,25 +512,30 @@
       <div id="toast-root"></div>
       <div id="pending-root"></div>
 
+      <div class="map-toggle on" id="corridor-toggle" title="Show/hide existing rail + freeway corridors (press C)">
+        <span class="swatch-line"></span>
+        <span id="corridor-toggle-label">Corridors: ON</span>
+        <span class="kbd">C</span>
+      </div>
+
+      <div class="map-toggle on" id="landmark-toggle" title="Show/hide major landmarks (press L)" style="left: 200px;">
+        <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ffc864;border:1px solid #000;"></span>
+        <span id="landmark-toggle-label">Landmarks: ON</span>
+        <span class="kbd">L</span>
+      </div>
+
       <div class="toolbar">
         <h3>Build mode</h3>
         <div class="mode-group" id="mode-group">
           <!-- modes injected by JS -->
         </div>
         <div class="hint">
-          <strong>Click to place stations</strong> along your line — buttons
-          to finish/cancel appear at the bottom. <strong>Z</strong> undoes
-          the last station. Faint <span style="color:#78c88c">green lines</span>
-          mark existing rail corridors (huge build discount). Faint
-          <span style="color:#b4b4c8">grey lines</span> are freeways
-          (smaller discount). Mountains add a build penalty.
+          <strong>Click to place stations</strong> along your line. Faint
+          <span style="color:#78c88c">green lines</span> = rail right-of-way
+          (build discount). Coloured dots = landmarks (LAX, UCLA, Disney,
+          stadiums, hospitals) — build a station near one for a ridership
+          boost. Mountains and airports add build penalties.
         </div>
-        <button id="toggle-corridors" style="
-          width: 100%; margin-top: 6px; padding: 5px;
-          background: var(--panel-2); border: 1px solid var(--border);
-          color: var(--muted); border-radius: 4px; font-size: 11px;
-          cursor: pointer;
-        ">Toggle corridor overlay</button>
 
         <h3 style="margin-top:14px;">Existing Metro Rail</h3>
         <div id="baseline-legend" class="route-list" style="max-height:none;">

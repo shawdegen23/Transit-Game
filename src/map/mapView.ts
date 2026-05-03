@@ -16,6 +16,7 @@ import {
 import { loadStreetGraph, nearestNode } from "./streetGraph";
 import { getCorridorFeatures, type CorridorFeature } from "./corridors";
 import { isInOcean } from "./terrain";
+import { getLandmarks, loadLandmarks, type Landmark } from "./landmarks";
 
 const BASEMAP_STYLE =
   "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
@@ -25,7 +26,54 @@ let streetsReady = false;
 let streetNodes: [number, number][] = [];
 let hoverPos: [number, number] | null = null;
 let forceRerender: () => void = () => {};
-let showCorridors = true;
+
+// Initial corridor visibility from localStorage (defaults ON).
+function loadPref(key: string, defaultOn: boolean): boolean {
+  try {
+    const v = localStorage.getItem(key);
+    if (v === "0") return false;
+    if (v === "1") return true;
+  } catch {
+    // Storage unavailable — fall back to default.
+  }
+  return defaultOn;
+}
+let showCorridors = loadPref("ca-transit-corridors", true);
+let showLandmarks = loadPref("ca-transit-landmarks", true);
+
+function savePref(key: string, val: boolean): void {
+  try {
+    localStorage.setItem(key, val ? "1" : "0");
+  } catch {
+    // No-op
+  }
+}
+
+function syncCorridorButton(): void {
+  const btn = document.getElementById("corridor-toggle");
+  const label = document.getElementById("corridor-toggle-label");
+  if (btn) btn.classList.toggle("on", showCorridors);
+  if (label) label.textContent = showCorridors ? "Corridors: ON" : "Corridors: OFF";
+}
+
+function syncLandmarkButton(): void {
+  const btn = document.getElementById("landmark-toggle");
+  const label = document.getElementById("landmark-toggle-label");
+  if (btn) btn.classList.toggle("on", showLandmarks);
+  if (label) label.textContent = showLandmarks ? "Landmarks: ON" : "Landmarks: OFF";
+}
+
+// Color per landmark kind (rgba).
+const LANDMARK_COLOR: Record<string, [number, number, number, number]> = {
+  airport: [255, 200, 100, 230],
+  university: [180, 130, 220, 230],
+  college: [180, 130, 220, 200],
+  hospital: [240, 100, 100, 230],
+  stadium: [100, 200, 240, 230],
+  theme_park: [255, 130, 200, 230],
+  beach: [255, 230, 130, 200],
+  mall: [180, 180, 180, 200],
+};
 
 export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
   const map = new maplibregl.Map({
@@ -83,6 +131,29 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
             widthUnits: "pixels",
             capRounded: true,
             jointRounded: true,
+          }),
+        );
+      }
+    }
+
+    // Landmark markers — under everything else.
+    if (showLandmarks) {
+      const lms = getLandmarks();
+      if (lms.length > 0) {
+        layers.push(
+          new ScatterplotLayer({
+            id: "landmarks",
+            data: lms,
+            getPosition: (d: Landmark) => [d.lon, d.lat],
+            getFillColor: (d: Landmark) => LANDMARK_COLOR[d.kind] ?? [200, 200, 200, 200],
+            getLineColor: [10, 10, 10, 220],
+            stroked: true,
+            getRadius: (d: Landmark) => 80 + d.magnitude * 220,
+            radiusMinPixels: 4,
+            radiusMaxPixels: 12,
+            lineWidthMinPixels: 1,
+            opacity: 0.9,
+            pickable: true,
           }),
         );
       }
@@ -261,11 +332,34 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
   // Re-render trigger for hover-only changes (hoverPos isn't in game state).
   forceRerender = () => setState({});
 
-  // Expose corridor toggle to HUD.
-  (window as unknown as { toggleCorridors: () => void }).toggleCorridors = () => {
+  // Corridor toggle: button click + 'C' key. State persists in localStorage.
+  const toggleCorridors = () => {
     showCorridors = !showCorridors;
+    savePref("ca-transit-corridors", showCorridors);
+    syncCorridorButton();
     forceRerender();
   };
+  syncCorridorButton();
+  document.getElementById("corridor-toggle")?.addEventListener("click", toggleCorridors);
+
+  // Landmark toggle: button click + 'L' key.
+  const toggleLandmarks = () => {
+    showLandmarks = !showLandmarks;
+    savePref("ca-transit-landmarks", showLandmarks);
+    syncLandmarkButton();
+    forceRerender();
+  };
+  syncLandmarkButton();
+  document.getElementById("landmark-toggle")?.addEventListener("click", toggleLandmarks);
+
+  window.addEventListener("keydown", (e) => {
+    if ((e.target instanceof HTMLInputElement)) return;
+    if (e.key === "c" || e.key === "C") toggleCorridors();
+    else if (e.key === "l" || e.key === "L") toggleLandmarks();
+  });
+
+  // Re-render when landmarks finish loading.
+  loadLandmarks().then(() => forceRerender());
 
   function snapLocal(p: [number, number]): [number, number] {
     if (!streetsReady) return p;

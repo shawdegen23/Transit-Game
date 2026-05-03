@@ -21,9 +21,9 @@ import { execSync } from "node:child_process";
 import { readFileSync, rmSync, existsSync } from "node:fs";
 
 const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
-const BBOX = { west: -118.95, south: 33.65, east: -117.6, north: 34.4 };
+const BBOX = { west: -119.4, south: 33.4, east: -117.4, north: 34.6 };
 
-const TILES_X = 4;
+const TILES_X = 5;
 const TILES_Y = 3;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
