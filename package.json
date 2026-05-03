@@ -1,0 +1,25 @@
+{
+  "name": "ca-transit-builder",
+  "private": true,
+  "version": "0.3.0",
+  "type": "module",
+  "description": "A realistic public transit builder game set in California.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "gtfs": "node scripts/fetch-gtfs.mjs",
+    "streets": "node scripts/fetch-streets.mjs"
+  },
+  "dependencies": {
+    "@deck.gl/core": "^9.0.27",
+    "@deck.gl/layers": "^9.0.27",
+    "@deck.gl/mapbox": "^9.0.27",
+    "maplibre-gl": "^4.7.1",
+    "zustand": "^5.0.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
+  }
+}

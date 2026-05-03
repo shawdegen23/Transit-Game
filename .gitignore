@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+.vite/
+.env
+.env.local
+
+# Vite build temp files
+vite.config.ts.timestamp-*.mjs
+vite.config.js.timestamp-*.mjs

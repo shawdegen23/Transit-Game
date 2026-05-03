@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>California Transit Builder — v0.3 (Los Angeles)</title>
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+    <style>
+      :root {
+        --bg: #0e1116;
+        --panel: #161b22;
+        --panel-2: #1f2630;
+        --border: #2a313c;
+        --text: #e6edf3;
+        --muted: #8b949e;
+        --accent: #f6c453;
+        --good: #3fb950;
+        --bad: #f85149;
+      }
+
+      * { box-sizing: border-box; }
+      html, body, #app { height: 100%; margin: 0; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        overflow: hidden;
+      }
+
+      #map {
+        position: absolute;
+        inset: 0;
+      }
+
+      /* Top bar */
+      .topbar {
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 48px;
+        background: linear-gradient(180deg, rgba(14,17,22,0.95), rgba(14,17,22,0.7));
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        gap: 16px;
+        z-index: 10;
+        backdrop-filter: blur(8px);
+      }
+      .topbar .title { font-weight: 600; letter-spacing: 0.2px; }
+      .topbar .agency { color: var(--muted); font-size: 13px; }
+      .topbar .stat {
+        display: flex; flex-direction: column; line-height: 1.1;
+        padding: 0 12px; border-left: 1px solid var(--border);
+      }
+      .topbar .stat .label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+      .topbar .stat .value { font-size: 14px; font-weight: 600; }
+      .stat .value.good { color: var(--good); }
+      .stat .value.bad { color: var(--bad); }
+      .topbar .spacer { flex: 1; }
+      .topbar .clock { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+      /* Toolbar (left) */
+      .toolbar {
+        position: absolute;
+        top: 64px; left: 16px;
+        width: 220px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        z-index: 10;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      }
+      .toolbar h3 {
+        margin: 0 0 8px 0;
+        font-size: 11px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        font-weight: 600;
+      }
+      .mode-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+      .mode-btn {
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 8px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+        text-align: left;
+        display: flex; justify-content: space-between; align-items: center;
+        transition: background 0.15s, border-color 0.15s;
+      }
+      .mode-btn:hover { background: #232a36; }
+      .mode-btn.active { border-color: var(--accent); background: #2a2418; }
+      .mode-btn .cost { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+      .hint {
+        font-size: 11px; color: var(--muted); line-height: 1.4;
+        padding: 8px; background: var(--panel-2); border-radius: 6px;
+      }
+
+      /* Inspector (right) */
+      .inspector {
+        position: absolute;
+        top: 64px; right: 16px;
+        width: 280px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        z-index: 10;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      }
+      .inspector h3 {
+        margin: 0 0 8px 0;
+        font-size: 11px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+      }
+      .route-list { display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow-y: auto; }
+      .route-row {
+        display: flex; align-items: center; gap: 8px;
+        background: var(--panel-2);
+        padding: 8px;
+        border-radius: 6px;
+        font-size: 13px;
+      }
+      .route-row .swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+      .route-row .meta { flex: 1; line-height: 1.2; }
+      .route-row .meta .name { font-weight: 600; }
+      .route-row .meta .sub { color: var(--muted); font-size: 11px; }
+      .empty {
+        font-size: 12px; color: var(--muted); text-align: center; padding: 16px 8px;
+        line-height: 1.5;
+      }
+
+      /* MapLibre attribution color tweak for dark theme */
+      .maplibregl-ctrl-attrib { background: rgba(22,27,34,0.7) !important; }
+      .maplibregl-ctrl-attrib a { color: var(--muted) !important; }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="map"></div>
+
+      <div class="topbar">
+        <div class="title">California Transit Builder</div>
+        <div class="agency">LA Metro · Sandbox</div>
+        <div class="spacer"></div>
+        <div class="stat">
+          <div class="label">Capital</div>
+          <div class="value good" id="stat-capital">$2.40B</div>
+        </div>
+        <div class="stat">
+          <div class="label">Operating / yr</div>
+          <div class="value" id="stat-operating">$1.85B</div>
+        </div>
+        <div class="stat">
+          <div class="label">Daily riders</div>
+          <div class="value" id="stat-riders">0</div>
+        </div>
+        <div class="stat">
+          <div class="label">Approval</div>
+          <div class="value good" id="stat-approval">62%</div>
+        </div>
+        <div class="stat clock">
+          <div class="label">Date</div>
+          <div class="value" id="stat-date">Jan 2026</div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <h3>Build mode</h3>
+        <div class="mode-group" id="mode-group">
+          <!-- modes injected by JS -->
+        </div>
+        <div class="hint">
+          Click two points on the map to draw a line in the selected mode.
+          Routes follow real LA streets via shortest-path. Cost shown is per
+          mile (rough US averages).
+        </div>
+
+        <h3 style="margin-top:14px;">Existing Metro Rail</h3>
+        <div id="baseline-legend" class="route-list" style="max-height:none;">
+          <div class="empty">Loading…</div>
+        </div>
+      </div>
+
+      <div class="inspector">
+        <h3>Routes</h3>
+        <div class="route-list" id="route-list">
+          <div class="empty">No routes yet.<br/>Pick a mode and click two points on the map.</div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
