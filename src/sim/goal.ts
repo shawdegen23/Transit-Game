@@ -1,31 +1,49 @@
-// Win/lose tracker.
+// Goal tracker.
 //
-// Default goal: hit RIDERSHIP_TARGET daily riders by GOAL_DEADLINE (Jan 1
-// of the deadline year).
-//
-// Lose conditions: approval drops below MIN_APPROVAL, OR operating budget
-// stays negative for INSOLVENCY_GRACE_MONTHS consecutive months.
+// v0.7: 2040 is a SOFT deadline. Hitting RIDERSHIP_TARGET = "won" toast,
+// missing the deadline = "missed" toast, but in either case the game
+// keeps running (sandbox mode). Only true game-over conditions are
+// approval collapse and prolonged insolvency.
 
 import { onMonth, getDate } from "../game/clock";
 import { totalDailyRiders } from "../game/routes";
 import { getState, setState } from "../game/state";
 
 export const RIDERSHIP_TARGET = 500_000;
-export const GOAL_DEADLINE_YEAR = 2040; // game starts Jan 2026 → 14 years
+export const GOAL_DEADLINE_YEAR = 2040;
 export const MIN_APPROVAL = 25;
 export const INSOLVENCY_GRACE_MONTHS = 6;
 
-export type GameOutcome = "won" | "lost_approval" | "lost_bankrupt" | "lost_deadline";
+// Hard game-over outcomes only. Soft outcomes (won goal, missed deadline)
+// surface as transient banners, not modals.
+export type GameOutcome = "lost_approval" | "lost_bankrupt";
+export type GoalMilestone = "won" | "missed_deadline" | null;
 
 export interface GoalState {
-  // Months in a row with operating budget < 0.
   insolventMonths: number;
-  // Set when game ends; null while in progress.
   outcome: GameOutcome | null;
+  // Set once when player first hits the ridership target.
+  hitTarget: boolean;
+  // Set once when 2040 passes without hitting target.
+  missedDeadline: boolean;
+  // The most recent transient milestone to surface to the player. The HUD
+  // clears this after showing a toast.
+  milestoneToast: GoalMilestone;
 }
 
 export function defaultGoalState(): GoalState {
-  return { insolventMonths: 0, outcome: null };
+  return {
+    insolventMonths: 0,
+    outcome: null,
+    hitTarget: false,
+    missedDeadline: false,
+    milestoneToast: null,
+  };
+}
+
+export function clearMilestoneToast(): void {
+  const s = getState();
+  setState({ goal: { ...s.goal, milestoneToast: null } });
 }
 
 let started = false;
@@ -34,28 +52,38 @@ export function startGoalTracker(): void {
   started = true;
   onMonth(() => {
     const s = getState();
-    if (s.goal.outcome !== null) return; // game already over
+    if (s.goal.outcome !== null) return;
 
     let insolventMonths = s.goal.insolventMonths;
     if (s.operatingBudgetM < 0) insolventMonths += 1;
     else insolventMonths = 0;
 
     let outcome: GameOutcome | null = null;
+    let hitTarget = s.goal.hitTarget;
+    let missedDeadline = s.goal.missedDeadline;
+    let milestoneToast: GoalMilestone = null;
+
     const riders = totalDailyRiders();
     const date = getDate();
 
-    if (riders >= RIDERSHIP_TARGET) {
-      outcome = "won";
-    } else if (s.approvalPct < MIN_APPROVAL) {
+    if (!hitTarget && riders >= RIDERSHIP_TARGET) {
+      hitTarget = true;
+      milestoneToast = "won";
+    }
+
+    if (!missedDeadline && !hitTarget && date.year >= GOAL_DEADLINE_YEAR) {
+      missedDeadline = true;
+      milestoneToast = "missed_deadline";
+    }
+
+    if (s.approvalPct < MIN_APPROVAL) {
       outcome = "lost_approval";
     } else if (insolventMonths >= INSOLVENCY_GRACE_MONTHS) {
       outcome = "lost_bankrupt";
-    } else if (date.year >= GOAL_DEADLINE_YEAR && date.month >= 0 && date.day >= 1) {
-      outcome = "lost_deadline";
     }
 
     setState({
-      goal: { insolventMonths, outcome },
+      goal: { insolventMonths, outcome, hitTarget, missedDeadline, milestoneToast },
     });
   });
 }

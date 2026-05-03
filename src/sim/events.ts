@@ -1,54 +1,97 @@
-// Political events. v0.5 ships exactly one type: a sales-tax ballot
-// measure. The clock fires onMonth → events.ts decides whether to spawn
-// a new event. Events are pushed to game state; the HUD renders a modal
-// for any pending event and exposes accept/decline.
+// Political and funding events. v0.7 adds CIG, TIRCP, NIMBY events.
+//
+// Events fall into two flavors:
+//   - SPONTANEOUS: spawned by the monthly tick (ballot measures, NIMBY).
+//     Surface as modals; player must accept/decline.
+//   - PLAYER-INITIATED: applied for via the funding panel (CIG, TIRCP, bonds).
+//     Become "in-flight" entries that resolve later.
 
 import { onMonth, getDate } from "../game/clock";
 import { getState, setState } from "../game/state";
 
-export type EventKind = "ballot_measure";
+export type EventKind =
+  | "ballot_measure"
+  | "cig_application"
+  | "tircp_application"
+  | "nimby";
 
-export interface BallotMeasure {
-  kind: "ballot_measure";
+interface BaseEvent {
   id: number;
-  // Year/month when proposed.
+  kind: EventKind;
   year: number;
   month: number;
-  // Capital injection (millions USD) if it passes.
+}
+
+export interface BallotMeasure extends BaseEvent {
+  kind: "ballot_measure";
   capitalIfPassedM: number;
-  // Approval needed to pass (0-100). Compared against current approvalPct
-  // with some noise.
   thresholdPct: number;
-  // Player's choice. null = pending.
   playerChoice: "accept" | "decline" | null;
-  // Outcome after resolution.
   outcome: "passed" | "failed" | "declined" | null;
 }
 
-export type GameEvent = BallotMeasure;
+// Federal Capital Investment Grant — needs a backing project (a route in
+// construction). 12-month review. Award is a fraction of project capital.
+export interface CIGApplication extends BaseEvent {
+  kind: "cig_application";
+  routeId: number;
+  awardM: number;
+  // Game-month index when decision lands.
+  resolutionMonth: number;
+  outcome: "approved" | "rejected" | null;
+}
+
+export interface TIRCPApplication extends BaseEvent {
+  kind: "tircp_application";
+  routeId: number;
+  awardM: number;
+  resolutionMonth: number;
+  outcome: "approved" | "rejected" | null;
+}
+
+export interface NIMBYEvent extends BaseEvent {
+  kind: "nimby";
+  routeId: number;
+  // Cost (millions) to handle outreach and avoid delay.
+  outreachCostM: number;
+  // Months of delay added if player refuses.
+  delayMonths: number;
+  approvalHit: number;
+  playerChoice: "outreach" | "ignore" | null;
+}
+
+export type GameEvent = BallotMeasure | CIGApplication | TIRCPApplication | NIMBYEvent;
 
 export interface EventState {
   pending: GameEvent[];
+  inflight: (CIGApplication | TIRCPApplication)[];
   history: GameEvent[];
   nextEventId: number;
-  // Game-month index of the most recent ballot measure. Used to space them out.
   lastBallotMonth: number;
+  lastNIMBYMonth: number;
 }
 
 export function defaultEventState(): EventState {
   return {
     pending: [],
+    inflight: [],
     history: [],
     nextEventId: 1,
     lastBallotMonth: -9999,
+    lastNIMBYMonth: -9999,
   };
 }
 
-const MIN_MONTHS_BETWEEN_BALLOTS = 24; // 2 sim years
+const MIN_MONTHS_BETWEEN_BALLOTS = 24;
+const MIN_MONTHS_BETWEEN_NIMBY = 18;
+const CIG_REVIEW_MONTHS = 12;
+const TIRCP_REVIEW_MONTHS = 6;
 
 function dateToMonthIndex(year: number, month: number): number {
   return year * 12 + month;
 }
+
+// ---------- Spontaneous ballot measures ----------
 
 function maybeSpawnBallot(): void {
   const s = getState();
@@ -56,81 +99,297 @@ function maybeSpawnBallot(): void {
   const now = getDate();
   const m = dateToMonthIndex(now.year, now.month);
   if (m - ev.lastBallotMonth < MIN_MONTHS_BETWEEN_BALLOTS) return;
-  // Only one pending at a time, please.
-  if (ev.pending.length > 0) return;
-  // 25% chance per eligible month (≈once every 4 eligible months, so ~once every 3 sim years on average).
+  if (ev.pending.find((e) => e.kind === "ballot_measure")) return;
   if (Math.random() > 0.25) return;
+
+  // Diminishing returns: each historical accepted ballot reduces the next
+  // award by ~15%.
+  const acceptedBefore = ev.history.filter(
+    (e) => e.kind === "ballot_measure" && e.outcome === "passed",
+  ).length;
+  const fatigueMult = Math.pow(0.85, acceptedBefore);
 
   const measure: BallotMeasure = {
     kind: "ballot_measure",
     id: ev.nextEventId,
     year: now.year,
     month: now.month,
-    // $1.5B–$3.5B injection range, scaled with current operating budget burn.
-    capitalIfPassedM: 1500 + Math.floor(Math.random() * 2000),
-    // Need ~50–55% approval to pass typically.
-    thresholdPct: 50 + Math.floor(Math.random() * 6),
+    capitalIfPassedM: Math.round((1500 + Math.floor(Math.random() * 2000)) * fatigueMult),
+    thresholdPct: 50 + Math.floor(Math.random() * 6) + acceptedBefore * 2,
     playerChoice: null,
     outcome: null,
   };
 
   setState({
-    events: {
-      ...ev,
-      pending: [...ev.pending, measure],
-      nextEventId: ev.nextEventId + 1,
-    },
+    events: { ...ev, pending: [...ev.pending, measure], nextEventId: ev.nextEventId + 1 },
   });
 }
 
-// Resolve a ballot the player has chosen on. Called from the HUD via
-// resolveEvent below.
 function resolveBallot(m: BallotMeasure): BallotMeasure {
   const s = getState();
-  if (m.playerChoice === "decline") {
-    return { ...m, outcome: "declined" };
-  }
-  // Pass probability: linear ramp from threshold-10 to threshold+10.
+  if (m.playerChoice === "decline") return { ...m, outcome: "declined" };
   const a = s.approvalPct;
   const noise = (Math.random() - 0.5) * 8;
   const passed = a + noise >= m.thresholdPct;
   return { ...m, outcome: passed ? "passed" : "failed" };
 }
 
+// ---------- Spontaneous NIMBY events ----------
+
+function maybeSpawnNIMBY(): void {
+  const s = getState();
+  const ev = s.events;
+  const now = getDate();
+  const m = dateToMonthIndex(now.year, now.month);
+  if (m - ev.lastNIMBYMonth < MIN_MONTHS_BETWEEN_NIMBY) return;
+  if (ev.pending.find((e) => e.kind === "nimby")) return;
+  // Need a route in construction to NIMBY against.
+  const candidates = s.routes.filter((r) => r.status === "construction");
+  if (candidates.length === 0) return;
+  if (Math.random() > 0.18) return;
+
+  const target = candidates[Math.floor(Math.random() * candidates.length)];
+  const ev2: NIMBYEvent = {
+    kind: "nimby",
+    id: ev.nextEventId,
+    year: now.year,
+    month: now.month,
+    routeId: target.id,
+    outreachCostM: Math.round(target.capitalCostM * 0.04 + 5),
+    delayMonths: 3 + Math.floor(Math.random() * 4),
+    approvalHit: 1.5,
+    playerChoice: null,
+  };
+  setState({
+    events: { ...ev, pending: [...ev.pending, ev2], nextEventId: ev.nextEventId + 1 },
+  });
+}
+
+// ---------- Player-initiated grant applications ----------
+
+export function applyForCIG(routeId: number): void {
+  const s = getState();
+  const route = s.routes.find((r) => r.id === routeId);
+  if (!route || route.status !== "construction") return;
+  // Reject if already an inflight CIG for this route.
+  if (s.events.inflight.find((e) => e.kind === "cig_application" && e.routeId === routeId)) return;
+  const now = getDate();
+  // Award scales with ridership-per-cost ratio. Big efficient projects
+  // get up to ~50% of capital reimbursed.
+  const efficiency = Math.min(1, route.dailyRiders / Math.max(1, route.capitalCostM * 50));
+  const awardFrac = 0.30 + 0.20 * efficiency;
+  const award = Math.round(route.capitalCostM * awardFrac);
+  const m = dateToMonthIndex(now.year, now.month);
+  const ev: CIGApplication = {
+    kind: "cig_application",
+    id: s.events.nextEventId,
+    year: now.year,
+    month: now.month,
+    routeId,
+    awardM: award,
+    resolutionMonth: m + CIG_REVIEW_MONTHS,
+    outcome: null,
+  };
+  setState({
+    events: {
+      ...s.events,
+      inflight: [...s.events.inflight, ev],
+      nextEventId: s.events.nextEventId + 1,
+    },
+  });
+}
+
+export function applyForTIRCP(routeId: number): void {
+  const s = getState();
+  const route = s.routes.find((r) => r.id === routeId);
+  if (!route || route.status !== "construction") return;
+  if (s.events.inflight.find((e) => e.kind === "tircp_application" && e.routeId === routeId)) return;
+  const now = getDate();
+  const efficiency = Math.min(1, route.dailyRiders / Math.max(1, route.capitalCostM * 50));
+  const awardFrac = 0.10 + 0.10 * efficiency;
+  const award = Math.round(route.capitalCostM * awardFrac);
+  const m = dateToMonthIndex(now.year, now.month);
+  const ev: TIRCPApplication = {
+    kind: "tircp_application",
+    id: s.events.nextEventId,
+    year: now.year,
+    month: now.month,
+    routeId,
+    awardM: award,
+    resolutionMonth: m + TIRCP_REVIEW_MONTHS,
+    outcome: null,
+  };
+  setState({
+    events: {
+      ...s.events,
+      inflight: [...s.events.inflight, ev],
+      nextEventId: s.events.nextEventId + 1,
+    },
+  });
+}
+
+function resolveInflight(): void {
+  const s = getState();
+  const now = getDate();
+  const m = dateToMonthIndex(now.year, now.month);
+  let capitalGain = 0;
+  let approvalGain = 0;
+  const remaining: typeof s.events.inflight = [];
+  const newHistory = [...s.events.history];
+  for (const ev of s.events.inflight) {
+    if (m < ev.resolutionMonth) {
+      remaining.push(ev);
+      continue;
+    }
+    // Approval probability: CIG ≈ 35% base, TIRCP ≈ 55% base, +/- approval modifier.
+    const base = ev.kind === "cig_application" ? 0.35 : 0.55;
+    const approvalMod = (s.approvalPct - 50) / 200; // ±0.25 from approval
+    const approved = Math.random() < base + approvalMod;
+    const resolved = { ...ev, outcome: (approved ? "approved" : "rejected") as "approved" | "rejected" };
+    if (approved) {
+      capitalGain += ev.awardM;
+      approvalGain += 1;
+    }
+    newHistory.push(resolved);
+  }
+  if (newHistory.length !== s.events.history.length) {
+    setState({
+      capitalBudgetM: s.capitalBudgetM + capitalGain,
+      approvalPct: Math.min(100, s.approvalPct + approvalGain),
+      events: { ...s.events, inflight: remaining, history: newHistory },
+    });
+  }
+}
+
+// ---------- Bond issuance ----------
+
+export interface Bond {
+  id: number;
+  issuedYear: number;
+  issuedMonth: number;
+  principalM: number;
+  // Total monthly payment (covers principal + interest over termMonths).
+  monthlyPaymentM: number;
+  termMonths: number;
+  monthsPaid: number;
+}
+
+export function issueBond(principalM: number): void {
+  const s = getState();
+  if (principalM <= 0) return;
+  const now = getDate();
+  // Annual interest rate scales with approval: high approval = better rate.
+  // 60% approval = 5% APR; 30% = 9%; 90% = 3%.
+  const apr = Math.max(0.025, 0.10 - 0.0009 * s.approvalPct);
+  const r = apr / 12; // monthly rate
+  const n = 240; // 20 years
+  const monthlyPayment = (principalM * r) / (1 - Math.pow(1 + r, -n));
+  const bond: Bond = {
+    id: s.bonds.length + 1,
+    issuedYear: now.year,
+    issuedMonth: now.month,
+    principalM,
+    monthlyPaymentM: Math.round(monthlyPayment * 100) / 100,
+    termMonths: n,
+    monthsPaid: 0,
+  };
+  setState({
+    capitalBudgetM: s.capitalBudgetM + principalM,
+    bonds: [...s.bonds, bond],
+  });
+}
+
+// Total monthly bond payment (sum of all active bonds).
+export function bondMonthlyDebtM(): number {
+  return getState().bonds
+    .filter((b) => b.monthsPaid < b.termMonths)
+    .reduce((sum, b) => sum + b.monthlyPaymentM, 0);
+}
+
+function tickBonds(): void {
+  const s = getState();
+  if (s.bonds.length === 0) return;
+  const updated = s.bonds.map((b) =>
+    b.monthsPaid < b.termMonths ? { ...b, monthsPaid: b.monthsPaid + 1 } : b,
+  );
+  setState({ bonds: updated });
+}
+
+// ---------- Resolution + dispatch ----------
+
 export function resolveEvent(
   eventId: number,
-  choice: "accept" | "decline",
+  choice: "accept" | "decline" | "outreach" | "ignore",
 ): void {
   const s = getState();
   const idx = s.events.pending.findIndex((e) => e.id === eventId);
   if (idx < 0) return;
   const ev = s.events.pending[idx];
-  if (ev.kind !== "ballot_measure") return;
-
-  const updated = resolveBallot({ ...ev, playerChoice: choice });
-
-  // Apply outcome.
-  let newCapital = s.capitalBudgetM;
-  let newApproval = s.approvalPct;
-  if (updated.outcome === "passed") {
-    newCapital += updated.capitalIfPassedM;
-    newApproval = Math.min(100, newApproval + 3);
-  } else if (updated.outcome === "failed") {
-    newApproval = Math.max(0, newApproval - 4);
-  } // declined → no change
-
   const now = getDate();
-  setState({
-    capitalBudgetM: newCapital,
-    approvalPct: Math.round(newApproval * 10) / 10,
-    events: {
-      ...s.events,
-      pending: s.events.pending.filter((_, i) => i !== idx),
-      history: [...s.events.history, updated],
-      lastBallotMonth: dateToMonthIndex(now.year, now.month),
-    },
-  });
+  const m = dateToMonthIndex(now.year, now.month);
+
+  if (ev.kind === "ballot_measure") {
+    const c = choice === "accept" || choice === "outreach" ? "accept" : "decline";
+    const resolved = resolveBallot({ ...ev, playerChoice: c });
+    let newCapital = s.capitalBudgetM;
+    let newApproval = s.approvalPct;
+    if (resolved.outcome === "passed") {
+      newCapital += resolved.capitalIfPassedM;
+      newApproval = Math.min(100, newApproval + 3);
+    } else if (resolved.outcome === "failed") {
+      newApproval = Math.max(0, newApproval - 4);
+    }
+    setState({
+      capitalBudgetM: newCapital,
+      approvalPct: Math.round(newApproval * 10) / 10,
+      events: {
+        ...s.events,
+        pending: s.events.pending.filter((_, i) => i !== idx),
+        history: [...s.events.history, resolved],
+        lastBallotMonth: m,
+      },
+    });
+    return;
+  }
+
+  if (ev.kind === "nimby") {
+    if (choice === "outreach" || choice === "accept") {
+      // Pay outreach cost, no delay.
+      const newCapital = Math.max(0, s.capitalBudgetM - ev.outreachCostM);
+      const resolved: NIMBYEvent = { ...ev, playerChoice: "outreach" };
+      setState({
+        capitalBudgetM: newCapital,
+        events: {
+          ...s.events,
+          pending: s.events.pending.filter((_, i) => i !== idx),
+          history: [...s.events.history, resolved],
+          lastNIMBYMonth: m,
+        },
+      });
+    } else {
+      // Refuse: delay route + small approval hit.
+      const updatedRoutes = s.routes.map((r) =>
+        r.id === ev.routeId
+          ? { ...r, buildMonths: r.buildMonths + ev.delayMonths }
+          : r,
+      );
+      const resolved: NIMBYEvent = { ...ev, playerChoice: "ignore" };
+      setState({
+        routes: updatedRoutes,
+        approvalPct: Math.max(0, s.approvalPct - ev.approvalHit),
+        events: {
+          ...s.events,
+          pending: s.events.pending.filter((_, i) => i !== idx),
+          history: [...s.events.history, resolved],
+          lastNIMBYMonth: m,
+        },
+      });
+    }
+    return;
+  }
 }
+
+// ---------- Tick wiring ----------
 
 let started = false;
 export function startEvents(): void {
@@ -138,5 +397,8 @@ export function startEvents(): void {
   started = true;
   onMonth(() => {
     maybeSpawnBallot();
+    maybeSpawnNIMBY();
+    resolveInflight();
+    tickBonds();
   });
 }

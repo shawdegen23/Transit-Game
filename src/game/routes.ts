@@ -193,10 +193,59 @@ export function constructionCount(): number {
 }
 
 export function totalTransfers(): number {
-  // Each transfer is counted twice (once per route), so /2.
   return Math.round(
     getState()
       .routes.filter((r) => r.status === "operating")
       .reduce((sum, r) => sum + r.transferCount, 0) / 2,
   );
+}
+
+// Cancel an in-construction route. Refunds 70% of capital spent so far;
+// the remaining 30% is sunk cost (planning, mobilization, demolition).
+export function cancelConstruction(routeId: number): void {
+  const s = getState();
+  const r = s.routes.find((x) => x.id === routeId);
+  if (!r || r.status !== "construction") return;
+  const spentSoFar = (r.monthsBuilt / r.buildMonths) * r.capitalCostM;
+  const refund = spentSoFar * 0.7;
+  setState({
+    routes: s.routes.filter((x) => x.id !== routeId),
+    capitalBudgetM: s.capitalBudgetM + refund,
+    approvalPct: Math.max(0, s.approvalPct - 0.5),
+  });
+  recomputeTransferStats();
+}
+
+// Shut down an operating route. Big approval hit, no refund.
+export function shutdownRoute(routeId: number): void {
+  const s = getState();
+  const r = s.routes.find((x) => x.id === routeId);
+  if (!r || r.status !== "operating") return;
+  setState({
+    routes: s.routes.filter((x) => x.id !== routeId),
+    approvalPct: Math.max(0, s.approvalPct - 4),
+  });
+  recomputeTransferStats();
+}
+
+// Live preview of cost + length for a list of pending stations, without
+// committing or running pathfinding (uses haversine for speed).
+export function previewRoute(
+  stations: [number, number][],
+  modeId: ModeId,
+): { lengthMi: number; capitalCostM: number; estBuildMonths: number } {
+  if (stations.length < 2) return { lengthMi: 0, capitalCostM: 0, estBuildMonths: 0 };
+  const mode = getMode(modeId);
+  let len = 0;
+  for (let i = 0; i + 1 < stations.length; i++) {
+    len += haversineMi(stations[i], stations[i + 1]);
+  }
+  // Street-following routes are usually 1.2-1.4x crow-flies in LA.
+  const adjLen = len * 1.3;
+  const cost = adjLen * mode.capitalCostPerMileM;
+  return {
+    lengthMi: adjLen,
+    capitalCostM: cost,
+    estBuildMonths: estimateBuildMonths(modeId, cost),
+  };
 }

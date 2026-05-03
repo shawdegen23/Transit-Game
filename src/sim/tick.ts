@@ -1,38 +1,54 @@
-// Monthly simulation tick: progresses construction, settles operating
-// budget, adjusts approval. Called once per simulated month from main.ts.
+// Monthly simulation tick.
 
 import { onMonth } from "../game/clock";
 import { getMode } from "../game/modes";
 import { getState, setState } from "../game/state";
 import { recomputeTransferStats } from "../game/routes";
+import { bondMonthlyDebtM } from "./events";
+import { accessPopAt } from "./ridership";
 
-// Sales tax revenue baked in monthly (Measure M-style). LA Metro's actual
-// sales tax revenue is roughly $200M/month, but the player's "agency budget"
-// is a simplification that absorbs federal/state operating subsidies too.
-// We use a round number that lets new players survive a few months without
-// any operating routes yet, but feels tight once a system is built.
+// Sales-tax baseline (covers federal/state operating subsidies too).
 const SALES_TAX_MONTHLY_M = 90;
 
-// Average fare per boarding (USD).
+// CA Cap-and-Trade allocation per operating route-mile per month, USD millions.
+const CAP_TRADE_PER_MILE_M = 0.08;
+
+// TOD passive revenue per operating station, scaled by accessible
+// population at that station. Tuned so a downtown station yields ~$0.5M/mo.
+const TOD_PER_STATION_BASE_M = 0.05;
+const TOD_DENSITY_FACTOR = 0.0000015; // multiplied by accessPop
+
 const FARE_USD = 1.75;
 
-// Operating cost factor: per-mile cost in modes.ts is per revenue mile.
-// A daily revenue mile is roughly 18 hours of service, so we treat
-// per-route monthly operating cost as ~30 days * 18 service hours *
-// per-mile cost / very-rough-trips-per-mile factor. Calibrate later.
 function monthlyOperatingCostM(modeId: string, lengthMi: number): number {
   const m = getMode(modeId as Parameters<typeof getMode>[0]);
-  // Revenue miles per month per route: assume both directions, 18-hour
-  // service, ~10 mph average effective speed (= 180 mi/day per direction).
   const revenueMilesPerMonth = lengthMi * 2 * 30;
-  // Total cost USD → millions
   return (revenueMilesPerMonth * m.operatingCostPerMile) / 1_000_000;
 }
 
 function monthlyFareRevenueM(dailyRiders: number): number {
-  // 30 days, modest weekend dip baked in.
   const monthlyBoardings = dailyRiders * 28;
   return (monthlyBoardings * FARE_USD) / 1_000_000;
+}
+
+function monthlyTODRevenueM(): number {
+  const s = getState();
+  let total = 0;
+  for (const r of s.routes) {
+    if (r.status !== "operating") continue;
+    for (const st of r.stations) {
+      const access = accessPopAt(st[0], st[1]);
+      total += TOD_PER_STATION_BASE_M + access * TOD_DENSITY_FACTOR;
+    }
+  }
+  return total;
+}
+
+function monthlyCapTradeM(): number {
+  const s = getState();
+  let mi = 0;
+  for (const r of s.routes) if (r.status === "operating") mi += r.lengthMi;
+  return mi * CAP_TRADE_PER_MILE_M;
 }
 
 function progressConstruction(): { spentThisMonth: number; completedIds: number[] } {
@@ -42,7 +58,6 @@ function progressConstruction(): { spentThisMonth: number; completedIds: number[
   const updated = s.routes.map((r) => {
     if (r.status !== "construction") return r;
     const monthsBuilt = r.monthsBuilt + 1;
-    // Spend the route's capital evenly across its build months.
     const draw = r.capitalCostM / r.buildMonths;
     spent += draw;
     if (monthsBuilt >= r.buildMonths) {
@@ -55,40 +70,47 @@ function progressConstruction(): { spentThisMonth: number; completedIds: number[
   return { spentThisMonth: spent, completedIds: completed };
 }
 
-function settleOperating(): { revenueM: number; costM: number } {
+interface OperatingFlows {
+  fareM: number;
+  todM: number;
+  capTradeM: number;
+  salesTaxM: number;
+  costM: number;
+  bondsM: number;
+}
+
+function settleOperating(): OperatingFlows {
   const s = getState();
-  let revenue = SALES_TAX_MONTHLY_M;
-  let cost = 0;
+  let fareM = 0;
+  let costM = 0;
   for (const r of s.routes) {
     if (r.status !== "operating") continue;
-    revenue += monthlyFareRevenueM(r.dailyRiders);
-    cost += monthlyOperatingCostM(r.mode, r.lengthMi);
+    fareM += monthlyFareRevenueM(r.dailyRiders);
+    costM += monthlyOperatingCostM(r.mode, r.lengthMi);
   }
-  return { revenueM: revenue, costM: cost };
+  return {
+    fareM,
+    todM: monthlyTODRevenueM(),
+    capTradeM: monthlyCapTradeM(),
+    salesTaxM: SALES_TAX_MONTHLY_M,
+    costM,
+    bondsM: bondMonthlyDebtM(),
+  };
 }
 
 function applyMonthEnd(): void {
   const s = getState();
   const construction = progressConstruction();
-  // If any route opened this month, refresh transfer counts + ridership.
   if (construction.completedIds.length > 0) {
     recomputeTransferStats();
   }
-  const operating = settleOperating();
+  const op = settleOperating();
+  const opNet =
+    op.fareM + op.todM + op.capTradeM + op.salesTaxM - op.costM - op.bondsM;
 
-  const newCapital = Math.max(
-    0,
-    s.capitalBudgetM - construction.spentThisMonth,
-  );
-  const opNet = operating.revenueM - operating.costM;
+  const newCapital = Math.max(0, s.capitalBudgetM - construction.spentThisMonth);
   const newOperating = s.operatingBudgetM + opNet;
 
-  // Approval adjustments:
-  //   +0.2/mo per completed route
-  //   -0.5/mo if operating budget is negative
-  //   -0.3/mo if capital budget is empty AND there are no operating routes
-  //          (you're stuck — players notice)
-  //   +0.05/mo per operating route (slow grind upward when system runs)
   let approval = s.approvalPct;
   approval += construction.completedIds.length * 0.2;
   if (newOperating < 0) approval -= 0.5;
@@ -110,4 +132,9 @@ export function startSimulation(): void {
   if (started) return;
   started = true;
   onMonth(() => applyMonthEnd());
+}
+
+// Exposed for HUD inspection.
+export function previewMonthlyFlows(): OperatingFlows {
+  return settleOperating();
 }

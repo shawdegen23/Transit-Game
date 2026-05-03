@@ -29,6 +29,7 @@ import { getDate, setSpeed } from "./game/clock";
 
 // eslint-disable-next-line no-console
 console.log(
-  "[CA Transit Builder] v0.6 — player-placed stations, transfers between lines. " +
-    "Click to place stations, double-click or Enter to finish, Esc cancels, Z undoes.",
+  "[CA Transit Builder] v0.7 — soft deadline, smoother station placement, " +
+    "route deletion, federal CIG + state TIRCP grants, bonds, TOD revenue, " +
+    "cap-and-trade, NIMBY events. Sandbox mode after the goal is hit.",
 );

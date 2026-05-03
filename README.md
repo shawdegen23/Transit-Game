@@ -7,7 +7,7 @@ California maps — starting with Los Angeles.
 
 See [DESIGN.md](./DESIGN.md) for the full vision, scope, and roadmap.
 
-## Status: v0.6 (real transit planning)
+## Status: v0.7 (more funding, more friction, more sandbox)
 
 What's playable today:
 - Real isometric map of Los Angeles (MapLibre + deck.gl, dark basemap)
@@ -36,10 +36,23 @@ What's playable today:
 - **Lose conditions**: approval below 25%, 6 months bankrupt, or deadline
 - Goal progress bar across the top, end-game modal with restart
 - **Player-placed stations**: click as many points as you want along a
-  route, double-click or Enter to commit. Z undoes the last station.
+  route. A bottom-of-screen panel shows live cost/length/build-time and
+  has Finish/Cancel buttons (Enter/Esc still work). A gold ghost dot
+  follows your cursor showing where the next station would snap.
 - **Transfers**: when one of your operating routes has a station within
   ~200m of another operating route's station, both lines get a ridership
-  boost. Stack multiple transfers for diminishing-returns multipliers.
+  boost (diminishing returns when stacking).
+- **Route deletion**: cancel a route in construction (70% refund) or
+  shut down an operating route (approval hit) from the inspector.
+- **Funding sources panel**: federal CIG grants, state TIRCP grants, and
+  bond issuance, plus a summary of monthly recurring revenue (sales tax,
+  cap-and-trade, TOD, fares, ops costs, debt service).
+- **NIMBY events**: occasionally a community group will oppose one of
+  your in-construction lines. Pay outreach to keep on schedule, or push
+  through and absorb a delay + approval hit.
+- **Soft deadline**: 2040 / 500k riders is a celebration milestone, not
+  a game-over. The game keeps running so you can build a system you're
+  proud of.
 
 ## Run it
 
@@ -61,10 +74,10 @@ Vite will open `http://localhost:5173` automatically.
 
 ## Controls
 
-- **Click** to place a station. Keep clicking to add more along the line.
-- **Double-click** or **Enter** to finish the route and start construction.
+- **Click** to place a station. Buttons at the bottom of the screen show
+  live cost/length and let you Finish or Cancel.
+- **Enter** finishes the route. **Esc** cancels.
 - **Z** undoes the last placed station while drawing.
-- **Esc** cancels a pending route (or close a modal).
 - **Space** toggles pause / play.
 - **Right-click + drag** to rotate / change pitch (the isometric look).
 - **Scroll** to zoom; **left-click + drag** to pan.
@@ -109,9 +122,9 @@ src/
   data/la-bbox.ts          # LA viewport constants
 ```
 
-## What's next (v0.7)
+## What's next (v0.8)
 
-- Federal CIG grant cycles (apply, wait, decide)
-- NIMBY opposition (delays construction)
-- Fare hike decisions
-- Multiple starting scenarios (Olympics 2028, Pacific Electric restoration)
+- Construction acceleration: build along existing rail right-of-way for
+  cost/time discount; design-build contracting; pre-cast tunnels
+- More political factors: mayor/governor turnover, CEQA review, hearings
+- Fare-hike decisions (more revenue, less ridership)

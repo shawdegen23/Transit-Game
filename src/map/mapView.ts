@@ -21,6 +21,8 @@ const BASEMAP_STYLE =
 let baseline: BaselineCollection | null = null;
 let streetsReady = false;
 let streetNodes: [number, number][] = [];
+let hoverPos: [number, number] | null = null;
+let forceRerender: () => void = () => {};
 
 export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
   const map = new maplibregl.Map({
@@ -168,26 +170,29 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
       const m = getMode(s.selectedMode);
       const stations = s.pending.stations;
 
-      // Draw connecting line if there are 2+ stations.
-      if (stations.length >= 2) {
-        // Use a stitched path for live cost preview - cheap because Dijkstra
-        // is fast and we only redraw on click.
-        const previewPath = computeQuickPreview(stations);
+      // Connecting preview: stations placed so far, optionally extended to hover.
+      const previewLine: [number, number][] = [...stations];
+      if (hoverPos) previewLine.push(hoverPos);
+
+      if (previewLine.length >= 2) {
         layers.push(
           new PathLayer({
             id: "pending-path",
-            data: [{ path: previewPath }],
+            data: [{ path: previewLine }],
             getPath: (d: { path: [number, number][] }) => d.path,
-            getColor: [m.color[0], m.color[1], m.color[2], 180],
+            getColor: [m.color[0], m.color[1], m.color[2], 200],
             getWidth: 6,
             widthUnits: "pixels",
             capRounded: true,
             jointRounded: true,
+            // Make the trailing hover segment dashed-feeling by re-rendering
+            // each frame; the bind on hoverPos forces an updateTriggers tick.
+            updateTriggers: { getPath: hoverPos ? `${hoverPos[0]},${hoverPos[1]}` : "noh" },
           }),
         );
       }
 
-      // Station markers — pulsing gold for the latest, white for the rest.
+      // Placed stations.
       layers.push(
         new ScatterplotLayer({
           id: "pending-stations",
@@ -201,15 +206,37 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
           getLineColor: [20, 20, 20],
           stroked: true,
           getRadius: 70,
-          radiusMinPixels: 6,
-          radiusMaxPixels: 10,
+          radiusMinPixels: 7,
+          radiusMaxPixels: 12,
           lineWidthMinPixels: 1,
         }),
       );
+
+      // Ghost preview at hover position.
+      if (hoverPos) {
+        layers.push(
+          new ScatterplotLayer({
+            id: "pending-hover",
+            data: [{ position: hoverPos }],
+            getPosition: (d) => d.position,
+            getFillColor: [246, 196, 83, 140],
+            getLineColor: [246, 196, 83, 220],
+            stroked: true,
+            getRadius: 70,
+            radiusMinPixels: 6,
+            radiusMaxPixels: 10,
+            lineWidthMinPixels: 2,
+            updateTriggers: { getPosition: `${hoverPos[0]},${hoverPos[1]}` },
+          }),
+        );
+      }
     }
 
     overlay.setProps({ layers: layers as never });
   });
+
+  // Re-render trigger for hover-only changes (hoverPos isn't in game state).
+  forceRerender = () => setState({});
 
   function snapLocal(p: [number, number]): [number, number] {
     if (!streetsReady) return p;
@@ -232,6 +259,30 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
     const seg = buildSegment(s.pending.stations, s.selectedMode);
     commitSegment(seg);
   }
+
+  // Hover ghost — only active during pending route, throttled.
+  let hoverThrottle = 0;
+  map.on("mousemove", (e) => {
+    if (!getState().pending) {
+      if (hoverPos) {
+        hoverPos = null;
+        forceRerender();
+      }
+      return;
+    }
+    const now = performance.now();
+    if (now - hoverThrottle < 50) return;
+    hoverThrottle = now;
+    const raw: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+    hoverPos = snapLocal(raw);
+    forceRerender();
+  });
+  map.on("mouseout", () => {
+    if (hoverPos) {
+      hoverPos = null;
+      forceRerender();
+    }
+  });
 
   map.on("click", (e) => {
     const raw: [number, number] = [e.lngLat.lng, e.lngLat.lat];
@@ -282,9 +333,3 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
   return map;
 }
 
-// Quick preview path: stitch straight lines between pending stations. We
-// avoid running Dijkstra on every render to keep the click-loop snappy;
-// the actual street-following path is computed on commit.
-function computeQuickPreview(stations: [number, number][]): [number, number][] {
-  return stations;
-}

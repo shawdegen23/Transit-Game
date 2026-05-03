@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>California Transit Builder — v0.6 (Los Angeles)</title>
+    <title>California Transit Builder — v0.7 (Los Angeles)</title>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
     <style>
       :root {
@@ -182,6 +182,104 @@
       .pill.construction { background: #2a2418; color: var(--accent); }
       .pill.operating    { background: #1a2e1a; color: var(--good); }
 
+      /* Pending route preview panel (bottom center) */
+      .pending-panel {
+        position: absolute;
+        bottom: 24px; left: 50%; transform: translateX(-50%);
+        background: var(--panel);
+        border: 1px solid var(--accent);
+        border-radius: 10px;
+        padding: 12px 16px;
+        z-index: 12;
+        display: flex; align-items: center; gap: 14px;
+        box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+        font-size: 13px;
+        animation: pop 0.18s ease-out;
+      }
+      @keyframes pop { from { transform: translateX(-50%) scale(0.96); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
+      .pending-panel .stat-mini { display: flex; flex-direction: column; line-height: 1.1; }
+      .pending-panel .stat-mini .label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+      .pending-panel .stat-mini .value { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+      .pending-panel .stat-mini .value.bad { color: var(--bad); }
+      .pending-panel button {
+        background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+        padding: 6px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 600;
+      }
+      .pending-panel button:hover { background: #232a36; }
+      .pending-panel button.primary { background: var(--accent); color: #1a1408; border-color: var(--accent); }
+      .pending-panel button.primary:hover { filter: brightness(1.1); }
+      .pending-panel button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+      /* Funding panel (left, below toolbar) */
+      .funding {
+        position: absolute;
+        top: 64px; left: 250px;
+        width: 240px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        z-index: 10;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        max-height: calc(100vh - 80px);
+        overflow-y: auto;
+      }
+      .funding h3 {
+        margin: 0 0 8px 0;
+        font-size: 11px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+      }
+      .funding .action-row {
+        display: flex; flex-direction: column; gap: 4px;
+        background: var(--panel-2);
+        padding: 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        margin-bottom: 6px;
+      }
+      .funding .action-row .label { font-weight: 600; }
+      .funding .action-row .desc { color: var(--muted); font-size: 11px; line-height: 1.3; }
+      .funding .action-row button {
+        margin-top: 4px;
+        background: var(--accent); color: #1a1408; border: none;
+        padding: 5px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer;
+      }
+      .funding .action-row button:hover { filter: brightness(1.1); }
+      .funding .action-row button:disabled { opacity: 0.4; cursor: not-allowed; background: var(--panel-2); color: var(--muted); }
+      .funding .inflight {
+        font-size: 11px; color: var(--muted); padding: 4px 0; line-height: 1.3;
+        border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px;
+      }
+
+      /* Route action buttons in inspector */
+      .route-row .actions {
+        display: flex; gap: 4px;
+      }
+      .route-row .actions button {
+        background: transparent; border: 1px solid var(--border); color: var(--muted);
+        padding: 2px 6px; border-radius: 4px; font-size: 10px; cursor: pointer;
+      }
+      .route-row .actions button:hover { color: var(--bad); border-color: var(--bad); }
+
+      /* Toast for soft milestones */
+      .toast {
+        position: absolute;
+        top: 80px; left: 50%; transform: translateX(-50%);
+        background: var(--panel);
+        border: 1px solid var(--good);
+        border-radius: 10px;
+        padding: 10px 16px;
+        z-index: 50;
+        font-size: 13px;
+        box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+        animation: pop 0.3s ease-out;
+        max-width: 480px;
+        text-align: center;
+      }
+      .toast.bad { border-color: var(--bad); }
+
       /* Goal bar across bottom of topbar */
       .goal-bar {
         position: absolute;
@@ -320,6 +418,8 @@
       <div class="goal-label" id="goal-label">— / 500k riders by Jan 2040</div>
 
       <div id="modal-root"></div>
+      <div id="toast-root"></div>
+      <div id="pending-root"></div>
 
       <div class="toolbar">
         <h3>Build mode</h3>
@@ -327,17 +427,22 @@
           <!-- modes injected by JS -->
         </div>
         <div class="hint">
-          <strong>Click to place stations</strong> along your line — every
-          click adds one. <strong>Double-click or Enter</strong> to finish
-          and start construction. <strong>Esc</strong> cancels, <strong>Z</strong>
-          undoes the last station. Stations within ~200m of another line
-          become transfers (ridership boost).
+          <strong>Click to place stations</strong> along your line — buttons
+          to finish/cancel appear at the bottom of the screen.
+          <strong>Z</strong> undoes the last station. Stations within ~200m
+          of another line become transfers (ridership boost).
         </div>
 
         <h3 style="margin-top:14px;">Existing Metro Rail</h3>
         <div id="baseline-legend" class="route-list" style="max-height:none;">
           <div class="empty">Loading…</div>
         </div>
+      </div>
+
+      <div class="funding" id="funding-panel">
+        <h3>Funding sources</h3>
+        <div id="funding-actions"></div>
+        <div id="funding-inflight" class="inflight"></div>
       </div>
 
       <div class="inspector">

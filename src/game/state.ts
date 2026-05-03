@@ -1,7 +1,7 @@
 // Lightweight central state with a hand-rolled subscriber store.
 
 import type { ModeId } from "./modes";
-import { defaultEventState, type EventState } from "../sim/events";
+import { defaultEventState, type EventState, type Bond } from "../sim/events";
 import { defaultGoalState, type GoalState } from "../sim/goal";
 
 export type RouteStatus = "construction" | "operating";
@@ -47,6 +47,7 @@ export interface GameState {
   nextRouteId: number;
   events: EventState;
   goal: GoalState;
+  bonds: Bond[];
 }
 
 type Listener = (s: GameState) => void;
@@ -62,6 +63,7 @@ const initialState: GameState = {
   nextRouteId: 1,
   events: defaultEventState(),
   goal: defaultGoalState(),
+  bonds: [],
 };
 
 let state: GameState = { ...initialState };

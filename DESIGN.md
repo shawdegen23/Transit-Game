@@ -93,12 +93,46 @@ The game should reward the kinds of decisions real planners face:
 - **HUD**: new "Transfers" stat in the topbar; route inspector lists
   station count and transfer count per line.
 
-### v0.7
-- Federal CIG grant cycles (apply, wait 6mo, accept/decline).
-- NIMBY opposition (delays construction).
+### v0.7 (current)
+- **Soft deadline**: 2040 / 500k riders is now a milestone, not a game-over.
+  Hitting the goal shows a celebratory toast and unlocks "sandbox mode";
+  missing it shows a "missed deadline" toast — game continues either way.
+  Hard game-over only triggers from approval collapse or 6mo bankruptcy.
+- **Smoother station placement**: hover ghost shows where the next station
+  would land, bigger snap targets, on-screen Finish/Cancel buttons.
+- **Route deletion**: cancel a route in construction (refunds 70% of
+  capital spent so far) or shut down an operating route (big approval hit).
+- **Federal CIG grants**: apply on a route in construction, 12-month review,
+  approval probability scales with project ridership-per-cost ratio and
+  current approval. Award up to ~50% of project capital.
+- **State TIRCP grants**: smaller awards (~10-20%) but faster cycle (6mo)
+  and easier approval.
+- **Bond issuance**: pick a principal, get cash now, pay monthly debt
+  service for 20 years. Interest rate scales with current approval.
+- **Cap-and-Trade revenue**: per operating route-mile, a fixed monthly
+  allocation flows in.
+- **TOD passive revenue**: each operating station earns a small monthly
+  stream proportional to its accessible population (joint development).
+- **Ballot fatigue**: each accepted ballot raises the threshold and shrinks
+  the next award (~15% per accepted measure).
+- **NIMBY events**: random against a route in construction. Pay outreach
+  cost (no delay) or push through (3-6mo delay + small approval hit).
+
+### v0.8
+- Construction acceleration: build along existing rail right-of-way for
+  cost/time discount, design-build, 24/7 shifts, pre-cast tunnels.
+- More political factors: mayor/governor turnover, CEQA review, public
+  hearings before construction.
 - Fare-hike decisions (more revenue, less ridership).
-- Repeated-ballot fatigue.
-- Multiple starting scenarios (Olympics 2028, Pacific Electric restoration).
+- Live ridership preview while drawing a pending route.
+
+### v0.9
+- Geographic realism: terrain, rivers, existing rail corridors as overlays
+  and as bonuses/constraints.
+- Multiple scenarios: Olympics 2028, Pacific Electric restoration, etc.
+
+### v1.0
+- Bay Area as second region (full pipeline replication).
 
 ### v0.3
 - Agencies: LA Metro, LADOT, Foothill Transit, Big Blue Bus, etc., each with
@@ -241,7 +275,10 @@ few iterations.
 | v0.4    | Full LA County graph + clock + construction + monthly tick        |
 | v0.5    | Density ridership, ballot measures, goal/win/lose                 |
 | v0.6    | Player-placed stations, transfer detection + ridership bonus      |
-| v0.7    | More event types, fare hikes, ballot fatigue, scenarios           |
+| v0.7    | Soft deadline, route deletion, CIG/TIRCP/bonds/TOD/NIMBY, ballot fatigue |
+| v0.8    | Construction acceleration, mayor turnover, CEQA, fare hikes       |
+| v0.9    | Geographic realism, scenarios                                     |
+| v1.0    | Bay Area as second region                                         |
 | v0.5    | Multi-agency, voter approval, simple political events             |
 | v0.6    | Save/load, scenarios                                              |
 | v1.0    | Bay Area + statewide expansion, HSR, polished UI                  |
