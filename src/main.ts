@@ -53,6 +53,6 @@ import { getDate, setSpeed } from "./game/clock";
 
 // eslint-disable-next-line no-console
 console.log(
-  "[CA Transit Builder] v1.1 — save/load slots, autosave every sim-year, " +
-    "resume-on-reload, Ctrl+S quick-save.",
+  "[CA Transit Builder] v1.2 — animated trains traversing operating routes " +
+    "in both directions, animation speed scales with game clock.",
 );

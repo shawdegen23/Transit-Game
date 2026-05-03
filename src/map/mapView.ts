@@ -17,6 +17,8 @@ import { loadStreetGraph, nearestNode } from "./streetGraph";
 import { getCorridorFeatures, type CorridorFeature } from "./corridors";
 import { isInOcean } from "./terrain";
 import { getLandmarks, loadLandmarks, type Landmark } from "./landmarks";
+import { computeTrains, type TrainDot } from "./trains";
+import { getSpeedIdx } from "../game/clock";
 
 const BASEMAP_STYLE =
   "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
@@ -26,6 +28,9 @@ let streetsReady = false;
 let streetNodes: [number, number][] = [];
 let hoverPos: [number, number] | null = null;
 let forceRerender: () => void = () => {};
+let currentTrains: TrainDot[] = [];
+
+const SPEED_MULTS = [0, 1, 4, 16];
 
 // Initial corridor visibility from localStorage (defaults ON).
 function loadPref(key: string, defaultOn: boolean): boolean {
@@ -287,6 +292,27 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
         );
       }
 
+      // Animated trains traversing operating routes.
+      if (currentTrains.length > 0) {
+        layers.push(
+          new ScatterplotLayer({
+            id: "trains",
+            data: currentTrains,
+            getPosition: (d: TrainDot) => d.position,
+            getFillColor: (d: TrainDot) => d.color,
+            getLineColor: [10, 14, 18, 230],
+            stroked: true,
+            getRadius: (d: TrainDot) => d.size * 30,
+            radiusMinPixels: 3,
+            radiusMaxPixels: 8,
+            lineWidthMinPixels: 1,
+            updateTriggers: {
+              getPosition: currentTrains.length,
+            },
+          }),
+        );
+      }
+
       // Stations: every station of every route, color tinted by status.
       const stationDots: { position: [number, number]; status: string }[] = [];
       for (const r of s.routes) {
@@ -422,6 +448,30 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
 
   // Re-render when landmarks finish loading.
   loadLandmarks().then(() => forceRerender());
+
+  // Train animation loop. Runs every frame; only updates when there's at
+  // least one operating route. Throttled to ~30fps for sanity on the deck.gl
+  // setProps call.
+  let lastTrainUpdate = 0;
+  function animate(timestamp: number) {
+    requestAnimationFrame(animate);
+    if (timestamp - lastTrainUpdate < 33) return; // ~30 fps
+    lastTrainUpdate = timestamp;
+    const s = getState();
+    const operating = s.routes.filter((r) => r.status === "operating");
+    if (operating.length === 0) {
+      if (currentTrains.length > 0) {
+        currentTrains = [];
+        forceRerender();
+      }
+      return;
+    }
+    const speedMult = SPEED_MULTS[getSpeedIdx()] ?? 0;
+    const seconds = timestamp / 1000;
+    currentTrains = computeTrains(operating, seconds, speedMult);
+    forceRerender();
+  }
+  requestAnimationFrame(animate);
 
   function snapLocal(p: [number, number]): [number, number] {
     if (!streetsReady) return p;

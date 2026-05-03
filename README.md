@@ -7,7 +7,7 @@ California maps — starting with Los Angeles.
 
 See [DESIGN.md](./DESIGN.md) for the full vision, scope, and roadmap.
 
-## Status: v1.1 (save / load / resume)
+## Status: v1.2 (the network is alive)
 
 What's playable today:
 - Real isometric map of Los Angeles (MapLibre + deck.gl, dark basemap)
@@ -88,6 +88,10 @@ What's playable today:
   persisted in your browser. Menu button (top-left) opens the save
   manager. Reload the page → it offers to resume your previous game.
   `Ctrl+S` (or `Cmd+S`) for quick-save anytime.
+- **Animated trains**: every operating route has trains running back and
+  forth along its polyline. Train count scales with line length, dot size
+  scales with mode. Animation speed follows the game clock — paused
+  freezes them, 16× zips them across the map.
 
 ## Run it
 
@@ -160,10 +164,10 @@ src/
   data/la-bbox.ts          # LA viewport constants
 ```
 
-## What's next (v1.2)
+## What's next (v1.3)
 
-- Animated trains traversing operating routes
-- Per-route service frequency / peak vs off-peak controls
+- Per-route service frequency / peak vs off-peak controls (also drives
+  train density on the map)
 - Stats / charts panel and history view
 - First-time tutorial flow
 - Eventually: San Diego / Inland Empire bbox, then Bay Area

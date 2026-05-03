@@ -186,10 +186,16 @@ The game should reward the kinds of decisions real planners face:
 - **Schema versioning**: saves include a `version` field so future state
   shape changes can either migrate or fail gracefully.
 
-### v1.2 / Future
+### v1.2 (current)
+- **Animated trains**: every operating route now has trains running in
+  both directions along the polyline. Train count scales with route
+  length (~1 train per 3 miles, min 2 each direction). Animation speed
+  scales with game clock — paused at 0×, sleepy at 1×, zipping at 16×.
+  Heavy modes (HRT) get bigger train dots than buses.
+
+### v1.3 / Future
 - Push bbox south to San Diego, east to Inland Empire (Palm Springs).
-- Animated trains traversing operating routes.
-- Service frequency / peak vs off-peak controls.
+- Service frequency / peak vs off-peak controls (also affects train density).
 - Stats / charts panel + history view.
 - Tutorial / first-time onboarding.
 - Bay Area as second region.
@@ -341,7 +347,8 @@ few iterations.
 | v0.9    | Corridor overlay, terrain penalties, ocean constraint, scenarios, bond modal |
 | v1.0    | SoCal expansion (+OC +Ventura), landmarks system (LAX, Disney, UCLA, etc.) |
 | v1.1    | Save/load slots, autosave, resume-on-reload, Ctrl+S, menu modal   |
-| v1.2+   | Animated trains, service frequency, charts, tutorial              |
+| v1.2    | Animated trains running on operating routes                       |
+| v1.3+   | Service frequency, charts, tutorial                               |
 | v2.0+   | San Diego/IE bbox, Bay Area, statewide                            |
 | v0.5    | Multi-agency, voter approval, simple political events             |
 | v0.6    | Save/load, scenarios                                              |
