@@ -113,27 +113,9 @@ export function accessPopAt(lon: number, lat: number): number {
   return sum;
 }
 
-// Stations along a route. We synthesize ~1 station per mile along the
-// great-circle line between endpoints, including both endpoints. This is
-// a stand-in until v0.6+ lets the player place real intermediate stations,
-// and matches the average station spacing of LA Metro Rail (~0.7-1.2 mi).
-const TARGET_STATION_SPACING_MI = 1.0;
-
-function stationsForRoute(
-  from: [number, number],
-  to: [number, number],
-  lengthMi: number,
-): [number, number][] {
-  const numStations = Math.max(2, Math.round(lengthMi / TARGET_STATION_SPACING_MI) + 1);
-  const stations: [number, number][] = [];
-  for (let i = 0; i < numStations; i++) {
-    const t = i / (numStations - 1);
-    const lon = from[0] + (to[0] - from[0]) * t;
-    const lat = from[1] + (to[1] - from[1]) * t;
-    stations.push([lon, lat]);
-  }
-  return stations;
-}
+// v0.6: stations come from the player. We accept the station array as-is.
+// (The synthetic 1/mile fallback was removed when we switched to multi-click
+// placement.)
 
 // Mode share fractions calibrated against real LA Metro ridership.
 // The mults are conservative because we sum across station catchments
@@ -154,12 +136,10 @@ const MODE_MULT: Record<string, number> = {
 
 export function estimateRidership(
   mode: Mode,
-  from: [number, number],
-  to: [number, number],
+  stations: [number, number][],
   lengthMi: number,
 ): number {
-  if (!LOADED) return 0;
-  const stations = stationsForRoute(from, to, lengthMi);
+  if (!LOADED || stations.length < 2) return 0;
   let totalAccess = 0;
   for (const s of stations) {
     totalAccess += accessPopAt(s[0], s[1]);
@@ -171,9 +151,8 @@ export function estimateRidership(
   // (~5mi) are at full strength; very long routes plateau.
   const lengthFactor = Math.min(1.5, lengthMi / 5);
 
-  // Daily boardings. Note we don't divide by stations.length — overlap
-  // between adjacent station catchments is already implicitly absorbed
-  // into the calibrated MODE_MULT values above.
+  // Daily boardings. Overlap between adjacent station catchments is already
+  // implicitly absorbed into the calibrated MODE_MULT values.
   const daily = totalAccess * modeMult * lengthFactor;
   return Math.max(0, Math.round(daily));
 }

@@ -7,7 +7,7 @@ California maps — starting with Los Angeles.
 
 See [DESIGN.md](./DESIGN.md) for the full vision, scope, and roadmap.
 
-## Status: v0.5 (it's a game now)
+## Status: v0.6 (real transit planning)
 
 What's playable today:
 - Real isometric map of Los Angeles (MapLibre + deck.gl, dark basemap)
@@ -35,6 +35,11 @@ What's playable today:
 - **Goal**: hit 500k daily riders by Jan 2040
 - **Lose conditions**: approval below 25%, 6 months bankrupt, or deadline
 - Goal progress bar across the top, end-game modal with restart
+- **Player-placed stations**: click as many points as you want along a
+  route, double-click or Enter to commit. Z undoes the last station.
+- **Transfers**: when one of your operating routes has a station within
+  ~200m of another operating route's station, both lines get a ridership
+  boost. Stack multiple transfers for diminishing-returns multipliers.
 
 ## Run it
 
@@ -56,9 +61,10 @@ Vite will open `http://localhost:5173` automatically.
 
 ## Controls
 
-- **Click** a point on the map to start a route, **click again** to finish it.
-  Both endpoints snap to the nearest street intersection.
-- **Esc** cancels a pending route.
+- **Click** to place a station. Keep clicking to add more along the line.
+- **Double-click** or **Enter** to finish the route and start construction.
+- **Z** undoes the last placed station while drawing.
+- **Esc** cancels a pending route (or close a modal).
 - **Space** toggles pause / play.
 - **Right-click + drag** to rotate / change pitch (the isometric look).
 - **Scroll** to zoom; **left-click + drag** to pan.
@@ -103,9 +109,9 @@ src/
   data/la-bbox.ts          # LA viewport constants
 ```
 
-## What's next (v0.6)
+## What's next (v0.7)
 
-- Player-placed intermediate stations (vs auto-synthesized)
-- Multi-line transfers + ridership boost when lines connect
-- More event types: federal CIG grant cycles, NIMBY opposition
-- Multiple difficulty levels / starting scenarios
+- Federal CIG grant cycles (apply, wait, decide)
+- NIMBY opposition (delays construction)
+- Fare hike decisions
+- Multiple starting scenarios (Olympics 2028, Pacific Electric restoration)

@@ -2,7 +2,11 @@
 // goal progress, ballot-measure modal, and end screen to game state.
 
 import { MODES, type ModeId } from "../game/modes";
-import { totalDailyRiders, constructionCount } from "../game/routes";
+import {
+  totalDailyRiders,
+  constructionCount,
+  totalTransfers,
+} from "../game/routes";
 import { getState, setState, subscribe, type RouteSegment } from "../game/state";
 import { loadBaselineNetwork } from "../map/baselineNetwork";
 import {
@@ -90,7 +94,7 @@ export function initHud(): void {
       <span class="cost">$${m.capitalCostPerMileM}M/mi</span>
     `;
     btn.addEventListener("click", () => {
-      setState({ selectedMode: m.id as ModeId, pendingFrom: null });
+      setState({ selectedMode: m.id as ModeId, pending: null });
     });
     modeGroup.appendChild(btn);
   }
@@ -127,6 +131,7 @@ export function initHud(): void {
     el("stat-capital").textContent = fmtMoneyM(s.capitalBudgetM);
     el("stat-operating").textContent = fmtMoneyM(s.operatingBudgetM);
     el("stat-riders").textContent = fmtNumber(totalDailyRiders());
+    el("stat-transfers").textContent = fmtNumber(totalTransfers());
     el("stat-approval").textContent = `${s.approvalPct.toFixed(1)}%`;
 
     // Net flow indicator (millions/month)
@@ -168,8 +173,8 @@ export function initHud(): void {
     // Construction badge in title
     const cc = constructionCount();
     document.title = cc > 0
-      ? `🏗 ${cc} · California Transit Builder — v0.5`
-      : "California Transit Builder — v0.5 (Los Angeles)";
+      ? `🏗 ${cc} · California Transit Builder — v0.6`
+      : "California Transit Builder — v0.6 (Los Angeles)";
 
     // Goal bar
     const riders = totalDailyRiders();
@@ -266,13 +271,17 @@ function renderRouteRow(list: HTMLElement, r: RouteSegment): void {
   row.className = "route-row";
 
   const pill = `<span class="pill ${r.status}">${r.status === "construction" ? "Building" : "Live"}</span>`;
+  const stationCount = r.stations.length;
+  const xferTag = r.transferCount > 0
+    ? ` · ${r.transferCount} transfer${r.transferCount > 1 ? "s" : ""}`
+    : "";
   let sub: string;
   if (r.status === "construction") {
     const pct = Math.round((r.monthsBuilt / r.buildMonths) * 100);
     const remaining = r.buildMonths - r.monthsBuilt;
-    sub = `${r.lengthMi.toFixed(2)} mi · ${pct}% built · ${remaining}mo to open`;
+    sub = `${r.lengthMi.toFixed(2)} mi · ${stationCount} stations · ${pct}% built · ${remaining}mo`;
   } else {
-    sub = `${r.lengthMi.toFixed(2)} mi · ${r.dailyRiders.toLocaleString()} riders/day`;
+    sub = `${r.lengthMi.toFixed(2)} mi · ${stationCount} stations${xferTag} · ${r.dailyRiders.toLocaleString()} riders/day`;
   }
 
   row.innerHTML = `

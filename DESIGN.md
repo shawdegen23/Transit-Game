@@ -80,11 +80,25 @@ The game should reward the kinds of decisions real planners face:
   negative for 6 consecutive months, OR deadline passes without target.
 - **Goal progress bar** in topbar, **end-game modal** with restart button.
 
-### v0.6
-- Player-placed intermediate stations (vs auto-synthesized).
-- Multi-line transfers + ridership boost when lines connect.
-- More event types: federal CIG grant cycles, NIMBY opposition, fare hikes.
-- Multiple difficulty levels / starting roles.
+### v0.6 (current)
+- **Player-placed stations**: routes are now built by clicking N stations
+  in sequence; double-click or Enter commits, Esc cancels, Z undoes the
+  last station. Each station snaps to the nearest street junction.
+- **Per-segment pathfinding**: Dijkstra runs separately between each
+  consecutive station pair and the polylines are stitched together.
+  Length and cost reflect the true street-distance of the chosen path.
+- **Transfer detection**: when an operating route has a station within
+  ~200m of another operating route's station, both routes get a transfer
+  bonus to ridership (+30% per transfer with diminishing returns).
+- **HUD**: new "Transfers" stat in the topbar; route inspector lists
+  station count and transfer count per line.
+
+### v0.7
+- Federal CIG grant cycles (apply, wait 6mo, accept/decline).
+- NIMBY opposition (delays construction).
+- Fare-hike decisions (more revenue, less ridership).
+- Repeated-ballot fatigue.
+- Multiple starting scenarios (Olympics 2028, Pacific Electric restoration).
 
 ### v0.3
 - Agencies: LA Metro, LADOT, Foothill Transit, Big Blue Bus, etc., each with
@@ -226,7 +240,8 @@ few iterations.
 | v0.3    | Local street graph (downtown LA), Dijkstra pathfinding            |
 | v0.4    | Full LA County graph + clock + construction + monthly tick        |
 | v0.5    | Density ridership, ballot measures, goal/win/lose                 |
-| v0.6    | Player stations, multi-line transfers, more event types           |
+| v0.6    | Player-placed stations, transfer detection + ridership bonus      |
+| v0.7    | More event types, fare hikes, ballot fatigue, scenarios           |
 | v0.5    | Multi-agency, voter approval, simple political events             |
 | v0.6    | Save/load, scenarios                                              |
 | v1.0    | Bay Area + statewide expansion, HSR, polished UI                  |

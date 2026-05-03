@@ -4,6 +4,7 @@
 import { onMonth } from "../game/clock";
 import { getMode } from "../game/modes";
 import { getState, setState } from "../game/state";
+import { recomputeTransferStats } from "../game/routes";
 
 // Sales tax revenue baked in monthly (Measure M-style). LA Metro's actual
 // sales tax revenue is roughly $200M/month, but the player's "agency budget"
@@ -69,6 +70,10 @@ function settleOperating(): { revenueM: number; costM: number } {
 function applyMonthEnd(): void {
   const s = getState();
   const construction = progressConstruction();
+  // If any route opened this month, refresh transfer counts + ridership.
+  if (construction.completedIds.length > 0) {
+    recomputeTransferStats();
+  }
   const operating = settleOperating();
 
   const newCapital = Math.max(

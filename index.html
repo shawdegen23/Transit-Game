@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>California Transit Builder — v0.5 (Los Angeles)</title>
+    <title>California Transit Builder — v0.6 (Los Angeles)</title>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
     <style>
       :root {
@@ -296,6 +296,10 @@
           <div class="value" id="stat-riders">0</div>
         </div>
         <div class="stat">
+          <div class="label">Transfers</div>
+          <div class="value" id="stat-transfers">0</div>
+        </div>
+        <div class="stat">
           <div class="label">Approval</div>
           <div class="value good" id="stat-approval">62%</div>
         </div>
@@ -323,9 +327,11 @@
           <!-- modes injected by JS -->
         </div>
         <div class="hint">
-          Click two points on the map to draw a line in the selected mode.
-          Routes follow real LA streets via shortest-path. New routes start
-          under construction; press Play (1×/4×/16×) to advance time.
+          <strong>Click to place stations</strong> along your line — every
+          click adds one. <strong>Double-click or Enter</strong> to finish
+          and start construction. <strong>Esc</strong> cancels, <strong>Z</strong>
+          undoes the last station. Stations within ~200m of another line
+          become transfers (ridership boost).
         </div>
 
         <h3 style="margin-top:14px;">Existing Metro Rail</h3>

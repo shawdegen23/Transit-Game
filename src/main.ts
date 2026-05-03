@@ -29,6 +29,6 @@ import { getDate, setSpeed } from "./game/clock";
 
 // eslint-disable-next-line no-console
 console.log(
-  "[CA Transit Builder] v0.5 — density-based ridership, ballot measures, win/lose. " +
-    "Goal: hit 500k daily riders by Jan 2040.",
+  "[CA Transit Builder] v0.6 — player-placed stations, transfers between lines. " +
+    "Click to place stations, double-click or Enter to finish, Esc cancels, Z undoes.",
 );

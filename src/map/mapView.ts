@@ -1,8 +1,4 @@
 // Map view: MapLibre GL basemap + deck.gl overlay for game layers.
-// We use the MapboxOverlay adapter so deck.gl layers participate in MapLibre's
-// render pipeline — this keeps the basemap and game layers perfectly synced
-// during pan, zoom, pitch, and bearing changes (which is exactly what we need
-// for an isometric 2.5D feel).
 
 import maplibregl from "maplibre-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
@@ -47,7 +43,6 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
   const overlay = new MapboxOverlay({ layers: [] });
   map.addControl(overlay as unknown as maplibregl.IControl);
 
-  // Load baseline rail and street graph in parallel.
   loadBaselineNetwork()
     .then((b) => {
       baseline = b;
@@ -65,12 +60,10 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
     })
     .catch((err) => console.warn("[street-graph] failed:", err));
 
-  // Keep deck.gl layers in sync with game state.
   subscribe((s) => {
     const layers: unknown[] = [];
 
-    // Existing rail network — drawn UNDER player routes, slightly thicker but
-    // dimmer so the player's work pops visually.
+    // Existing rail network — drawn UNDER player routes.
     if (baseline && baseline.features.length > 0) {
       layers.push(
         new PathLayer({
@@ -92,10 +85,7 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
       );
     }
 
-    // Player routes: prefer the street-pathfound polyline; fall back to
-    // a straight LineLayer for segments that didn't get a path. Operating
-    // routes render at full opacity; under-construction routes render
-    // semi-transparent and slightly thinner.
+    // Player routes.
     if (s.routes.length > 0) {
       const widthFor = (d: RouteSegment) => {
         const m = getMode(d.mode);
@@ -125,8 +115,10 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
             capRounded: true,
             jointRounded: true,
             pickable: true,
-            // Trigger redraw whenever any route's status changes.
-            updateTriggers: { getColor: pathRoutes.map((r) => r.status).join(","), getWidth: pathRoutes.map((r) => r.status).join(",") },
+            updateTriggers: {
+              getColor: pathRoutes.map((r) => r.status).join(","),
+              getWidth: pathRoutes.map((r) => r.status).join(","),
+            },
           }),
         );
       }
@@ -136,50 +128,82 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
           new LineLayer({
             id: "routes-straight",
             data: straightRoutes,
-            getSourcePosition: (d: RouteSegment) => d.from,
-            getTargetPosition: (d: RouteSegment) => d.to,
+            getSourcePosition: (d: RouteSegment) => d.stations[0],
+            getTargetPosition: (d: RouteSegment) =>
+              d.stations[d.stations.length - 1],
             getColor: colorFor,
             getWidth: widthFor,
             widthUnits: "pixels",
             pickable: true,
-            updateTriggers: { getColor: straightRoutes.map((r) => r.status).join(","), getWidth: straightRoutes.map((r) => r.status).join(",") },
           }),
         );
       }
 
-      // Endpoints as station dots.
-      const stations: { position: [number, number] }[] = [];
+      // Stations: every station of every route, color tinted by status.
+      const stationDots: { position: [number, number]; status: string }[] = [];
       for (const r of s.routes) {
-        stations.push({ position: r.from });
-        stations.push({ position: r.to });
+        for (const st of r.stations) {
+          stationDots.push({ position: st, status: r.status });
+        }
       }
       layers.push(
         new ScatterplotLayer({
           id: "stations",
-          data: stations,
+          data: stationDots,
           getPosition: (d) => d.position,
-          getFillColor: [255, 255, 255],
+          getFillColor: (d) =>
+            d.status === "operating" ? [255, 255, 255, 255] : [200, 180, 130, 200],
           getLineColor: [20, 20, 20],
           stroked: true,
-          getRadius: 60,
+          getRadius: 50,
           radiusMinPixels: 4,
-          radiusMaxPixels: 10,
+          radiusMaxPixels: 9,
           lineWidthMinPixels: 1,
         }),
       );
     }
 
-    // Pending preview: ghost dot at first click.
-    if (s.pendingFrom) {
+    // Pending route preview: line through placed stations, plus markers.
+    if (s.pending && s.pending.stations.length > 0) {
+      const m = getMode(s.selectedMode);
+      const stations = s.pending.stations;
+
+      // Draw connecting line if there are 2+ stations.
+      if (stations.length >= 2) {
+        // Use a stitched path for live cost preview - cheap because Dijkstra
+        // is fast and we only redraw on click.
+        const previewPath = computeQuickPreview(stations);
+        layers.push(
+          new PathLayer({
+            id: "pending-path",
+            data: [{ path: previewPath }],
+            getPath: (d: { path: [number, number][] }) => d.path,
+            getColor: [m.color[0], m.color[1], m.color[2], 180],
+            getWidth: 6,
+            widthUnits: "pixels",
+            capRounded: true,
+            jointRounded: true,
+          }),
+        );
+      }
+
+      // Station markers — pulsing gold for the latest, white for the rest.
       layers.push(
         new ScatterplotLayer({
-          id: "pending-from",
-          data: [{ position: s.pendingFrom }],
+          id: "pending-stations",
+          data: stations.map((p, i) => ({
+            position: p,
+            isLast: i === stations.length - 1,
+          })),
           getPosition: (d) => d.position,
-          getFillColor: [246, 196, 83, 220],
-          getRadius: 80,
+          getFillColor: (d) =>
+            d.isLast ? [246, 196, 83, 230] : [255, 255, 255, 230],
+          getLineColor: [20, 20, 20],
+          stroked: true,
+          getRadius: 70,
           radiusMinPixels: 6,
-          radiusMaxPixels: 12,
+          radiusMaxPixels: 10,
+          lineWidthMinPixels: 1,
         }),
       );
     }
@@ -187,9 +211,6 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
     overlay.setProps({ layers: layers as never });
   });
 
-  // Local snap: find nearest junction in the cached street graph. Instant,
-  // no network round-trip. If the graph isn't loaded yet, just use the raw
-  // click — the player will still be able to build, just without snapping.
   function snapLocal(p: [number, number]): [number, number] {
     if (!streetsReady) return p;
     const idx = nearestNode(p[0], p[1]);
@@ -197,35 +218,73 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
     return streetNodes[idx];
   }
 
-  // Click: first click sets pendingFrom, second click commits a segment.
-  // Both endpoints snap to the nearest street intersection.
+  // Multi-click route drawing.
+  // - First click on empty: opens a pending route with that station.
+  // - Subsequent clicks: append station.
+  // - Double-click or Enter: commit the pending route (needs >= 2 stations).
+  // - Esc: cancel.
+  let lastClickTime = 0;
+  let lastClickPos: [number, number] | null = null;
+
+  function commitPending(): void {
+    const s = getState();
+    if (!s.pending || s.pending.stations.length < 2) return;
+    const seg = buildSegment(s.pending.stations, s.selectedMode);
+    commitSegment(seg);
+  }
+
   map.on("click", (e) => {
     const raw: [number, number] = [e.lngLat.lng, e.lngLat.lat];
     const lngLat = snapLocal(raw);
     const s = getState();
+    const now = Date.now();
+    const isDouble =
+      now - lastClickTime < 350 &&
+      lastClickPos !== null &&
+      Math.abs(lastClickPos[0] - lngLat[0]) < 1e-5 &&
+      Math.abs(lastClickPos[1] - lngLat[1]) < 1e-5;
+    lastClickTime = now;
+    lastClickPos = lngLat;
 
-    if (!s.pendingFrom) {
-      setState({ pendingFrom: lngLat });
+    if (isDouble) {
+      commitPending();
       return;
     }
 
-    if (
-      Math.abs(s.pendingFrom[0] - lngLat[0]) < 1e-6 &&
-      Math.abs(s.pendingFrom[1] - lngLat[1]) < 1e-6
-    ) {
-      return;
+    const stations = s.pending?.stations ?? [];
+    // Reject duplicate of the immediately previous click.
+    if (stations.length > 0) {
+      const prev = stations[stations.length - 1];
+      if (
+        Math.abs(prev[0] - lngLat[0]) < 1e-6 &&
+        Math.abs(prev[1] - lngLat[1]) < 1e-6
+      ) return;
     }
-
-    const seg = buildSegment(s.pendingFrom, lngLat, s.selectedMode);
-    commitSegment(seg);
+    setState({
+      pending: { stations: [...stations, lngLat] },
+    });
   });
 
-  // Esc cancels a pending route.
   window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && getState().pendingFrom) {
-      setState({ pendingFrom: null });
+    if (e.key === "Escape") {
+      if (getState().pending) setState({ pending: null });
+    } else if (e.key === "Enter") {
+      commitPending();
+    } else if ((e.key === "z" || e.key === "Z") && getState().pending) {
+      // Quick undo of last placed station.
+      const stations = getState().pending!.stations;
+      if (stations.length === 0) return;
+      const next = stations.slice(0, -1);
+      setState({ pending: next.length === 0 ? null : { stations: next } });
     }
   });
 
   return map;
+}
+
+// Quick preview path: stitch straight lines between pending stations. We
+// avoid running Dijkstra on every render to keep the click-loop snappy;
+// the actual street-following path is computed on commit.
+function computeQuickPreview(stations: [number, number][]): [number, number][] {
+  return stations;
 }
