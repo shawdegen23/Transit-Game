@@ -227,18 +227,21 @@ export function initHud(): void {
     // Funding panel
     renderFundingPanel(s);
 
-    // Modal: scenario picker > game-over > pending events.
+    // Modal: scenario picker > game-over > pending events. User-opened
+    // modals (menu, bond) own modal-root via dataset.kind and shouldn't
+    // be force-closed by state updates.
     const modalRoot = el<HTMLDivElement>("modal-root");
+    const userOwned = modalRoot.dataset.kind === "menu" || modalRoot.dataset.kind === "bond";
     if (!s.scenarioPicked) {
       renderScenarioPicker(modalRoot);
     } else if (s.goal.outcome) {
       renderEndModal(modalRoot, s.goal.outcome, riders);
-    } else if (s.events.pending.length > 0) {
+    } else if (s.events.pending.length > 0 && !userOwned) {
       const ev = s.events.pending[0];
       if (ev.kind === "ballot_measure") renderBallotModal(modalRoot, ev, s.approvalPct);
       else if (ev.kind === "nimby") renderNIMBYModal(modalRoot, ev);
       else modalRoot.innerHTML = "";
-    } else {
+    } else if (!userOwned) {
       modalRoot.innerHTML = "";
     }
 

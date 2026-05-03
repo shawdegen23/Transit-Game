@@ -239,6 +239,19 @@ export function totalTransfers(): number {
   );
 }
 
+// Drop any inflight CIG/TIRCP applications + pending NIMBY events that
+// reference a route that no longer exists.
+function cleanOrphanEvents(removedRouteId: number): void {
+  const s = getState();
+  const inflight = s.events.inflight.filter((e) => e.routeId !== removedRouteId);
+  const pending = s.events.pending.filter((e) => {
+    if (e.kind === "nimby") return e.routeId !== removedRouteId;
+    return true;
+  });
+  if (inflight.length === s.events.inflight.length && pending.length === s.events.pending.length) return;
+  setState({ events: { ...s.events, inflight, pending } });
+}
+
 export function cancelConstruction(routeId: number): void {
   const s = getState();
   const r = s.routes.find((x) => x.id === routeId);
@@ -250,6 +263,7 @@ export function cancelConstruction(routeId: number): void {
     capitalBudgetM: s.capitalBudgetM + refund,
     approvalPct: Math.max(0, s.approvalPct - 0.5),
   });
+  cleanOrphanEvents(routeId);
   recomputeTransferStats();
 }
 
@@ -261,6 +275,7 @@ export function shutdownRoute(routeId: number): void {
     routes: s.routes.filter((x) => x.id !== routeId),
     approvalPct: Math.max(0, s.approvalPct - 4),
   });
+  cleanOrphanEvents(routeId);
   recomputeTransferStats();
 }
 
