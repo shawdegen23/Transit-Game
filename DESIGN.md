@@ -118,13 +118,22 @@ The game should reward the kinds of decisions real planners face:
 - **NIMBY events**: random against a route in construction. Pay outreach
   cost (no delay) or push through (3-6mo delay + small approval hit).
 
-### v0.8
-- Construction acceleration: build along existing rail right-of-way for
-  cost/time discount, design-build, 24/7 shifts, pre-cast tunnels.
-- More political factors: mayor/governor turnover, CEQA review, public
-  hearings before construction.
-- Fare-hike decisions (more revenue, less ridership).
-- Live ridership preview while drawing a pending route.
+### v0.8 (current)
+- **Right-of-way detection**: routes that overlap existing rail or freeway
+  corridors get a cost+time discount (rail: up to −40% cost, −50% time;
+  freeway: up to −15% cost, −20% time). Pending panel shows ROW % live.
+- **Construction options**: per-route toggles for **design-build**
+  (−15% time, +10% cost) and **24/7 shifts** (−20% time, +25% cost).
+  Stack with each other and with ROW discount.
+- **Live ridership preview**: estimated daily riders shown in real time
+  as you place stations.
+- **Fare hike controls**: topbar +/- buttons adjust fare in $0.25 steps.
+  Price elasticity ≈ -0.4: a $0.25 hike adds ~14% revenue but loses ~6%
+  ridership, and burns 1.5 approval points. Cuts give back approval.
+- **Mayor/governor turnover**: every 4 sim years a new admin takes office
+  with a bias (transit-friendly / neutral / hostile). Bias affects
+  approval baseline and CIG/TIRCP grant probabilities (±10%). Visible
+  as a pill in the topbar.
 
 ### v0.9
 - Geographic realism: terrain, rivers, existing rail corridors as overlays
@@ -276,7 +285,7 @@ few iterations.
 | v0.5    | Density ridership, ballot measures, goal/win/lose                 |
 | v0.6    | Player-placed stations, transfer detection + ridership bonus      |
 | v0.7    | Soft deadline, route deletion, CIG/TIRCP/bonds/TOD/NIMBY, ballot fatigue |
-| v0.8    | Construction acceleration, mayor turnover, CEQA, fare hikes       |
+| v0.8    | ROW discounts, construction options, live preview, fares, mayor turnover |
 | v0.9    | Geographic realism, scenarios                                     |
 | v1.0    | Bay Area as second region                                         |
 | v0.5    | Multi-agency, voter approval, simple political events             |

@@ -4,7 +4,7 @@ import { onMonth } from "../game/clock";
 import { getMode } from "../game/modes";
 import { getState, setState } from "../game/state";
 import { recomputeTransferStats } from "../game/routes";
-import { bondMonthlyDebtM } from "./events";
+import { bondMonthlyDebtM, fareElasticity } from "./events";
 import { accessPopAt } from "./ridership";
 
 // Sales-tax baseline (covers federal/state operating subsidies too).
@@ -18,7 +18,7 @@ const CAP_TRADE_PER_MILE_M = 0.08;
 const TOD_PER_STATION_BASE_M = 0.05;
 const TOD_DENSITY_FACTOR = 0.0000015; // multiplied by accessPop
 
-const FARE_USD = 1.75;
+// Fare comes from game state now (player-adjustable). See sim/events.ts.
 
 function monthlyOperatingCostM(modeId: string, lengthMi: number): number {
   const m = getMode(modeId as Parameters<typeof getMode>[0]);
@@ -26,9 +26,10 @@ function monthlyOperatingCostM(modeId: string, lengthMi: number): number {
   return (revenueMilesPerMonth * m.operatingCostPerMile) / 1_000_000;
 }
 
-function monthlyFareRevenueM(dailyRiders: number): number {
-  const monthlyBoardings = dailyRiders * 28;
-  return (monthlyBoardings * FARE_USD) / 1_000_000;
+function monthlyFareRevenueM(dailyRiders: number, fareUSD: number, elasticity: number): number {
+  const adjustedRiders = dailyRiders * elasticity;
+  const monthlyBoardings = adjustedRiders * 28;
+  return (monthlyBoardings * fareUSD) / 1_000_000;
 }
 
 function monthlyTODRevenueM(): number {
@@ -83,9 +84,10 @@ function settleOperating(): OperatingFlows {
   const s = getState();
   let fareM = 0;
   let costM = 0;
+  const elast = fareElasticity(s.fareUSD);
   for (const r of s.routes) {
     if (r.status !== "operating") continue;
-    fareM += monthlyFareRevenueM(r.dailyRiders);
+    fareM += monthlyFareRevenueM(r.dailyRiders, s.fareUSD, elast);
     costM += monthlyOperatingCostM(r.mode, r.lengthMi);
   }
   return {

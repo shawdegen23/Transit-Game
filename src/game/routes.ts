@@ -1,8 +1,15 @@
 import { getMode, type ModeId } from "./modes";
-import { getState, setState, type RouteSegment } from "./state";
+import {
+  getState,
+  setState,
+  type RouteSegment,
+  type ConstructionOpts,
+  defaultOpts,
+} from "./state";
 import { nearestNode, shortestPath } from "../map/streetGraph";
 import { getDate } from "./clock";
 import { estimateRidership as estimateDensityRidership } from "../sim/ridership";
+import { computeRowOverlap, constructionDiscount } from "../map/corridors";
 
 const EARTH_RADIUS_MI = 3958.8;
 const M_PER_MI = 1609.344;
@@ -37,8 +44,21 @@ function dateToMonthIndex(year: number, month: number): number {
   return year * 12 + month;
 }
 
-// Pathfind a single segment between two stations. Returns the polyline
-// (excluding the start point — caller stitches) and length in miles.
+// Apply construction-options multipliers on top of ROW discount.
+function optionMults(opts: ConstructionOpts): { costMult: number; timeMult: number } {
+  let costMult = 1;
+  let timeMult = 1;
+  if (opts.designBuild) {
+    costMult *= 1.10;
+    timeMult *= 0.85;
+  }
+  if (opts.shifts247) {
+    costMult *= 1.25;
+    timeMult *= 0.80;
+  }
+  return { costMult, timeMult };
+}
+
 function pathfindSegment(
   from: [number, number],
   to: [number, number],
@@ -54,16 +74,14 @@ function pathfindSegment(
   return { coords: [from, to], lengthMi: haversineMi(from, to) };
 }
 
-// Build a route from an array of stations (>= 2). Each consecutive pair
-// gets pathfound separately and stitched into a single polyline.
 export function buildSegment(
   stations: [number, number][],
   modeId: ModeId,
+  opts: ConstructionOpts = defaultOpts,
 ): RouteSegment {
   if (stations.length < 2) throw new Error("buildSegment: need >= 2 stations");
   const mode = getMode(modeId);
 
-  // Stitch per-segment paths.
   let totalLenMi = 0;
   const fullPath: [number, number][] = [];
   for (let i = 0; i + 1 < stations.length; i++) {
@@ -73,13 +91,20 @@ export function buildSegment(
     else fullPath.push(...seg.coords.slice(1));
   }
 
-  const capitalCostM = totalLenMi * mode.capitalCostPerMileM;
-  const buildMonths = estimateBuildMonths(modeId, capitalCostM);
+  const baseCost = totalLenMi * mode.capitalCostPerMileM;
+  const { railShare, freewayShare } = computeRowOverlap(fullPath);
+  const rowDiscount = constructionDiscount(railShare, freewayShare);
+  const optMults = optionMults(opts);
+
+  const capitalCostM = baseCost * rowDiscount.costMult * optMults.costMult;
+  const baseBuildMonths = estimateBuildMonths(modeId, baseCost);
+  const buildMonths = Math.max(
+    1,
+    Math.round(baseBuildMonths * rowDiscount.timeMult * optMults.timeMult),
+  );
+
   const date = getDate();
   const s = getState();
-
-  // Initial ridership (before transfer bonus). Transfer bonus is applied
-  // by recomputeTransferStats() after commit.
   const baseRiders = estimateDensityRidership(mode, stations, totalLenMi);
 
   return {
@@ -95,6 +120,9 @@ export function buildSegment(
     buildMonths,
     monthsBuilt: 0,
     transferCount: 0,
+    railShare,
+    freewayShare,
+    opts: { ...opts },
   };
 }
 
@@ -105,7 +133,6 @@ export function commitSegment(seg: RouteSegment): void {
     pending: null,
     nextRouteId: s.nextRouteId + 1,
   });
-  // After committing, recompute transfers + ridership for everyone.
   recomputeTransferStats();
 }
 
@@ -121,10 +148,7 @@ function approxDistM(a: [number, number], b: [number, number]): number {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-// Per-transfer multiplier applied to a route's base ridership. Diminishing
-// returns: 1 transfer = +30%, 2 = +50%, 3 = +65%, …
 function transferBonus(transfers: number): number {
-  // Geometric-ish decay: each new transfer adds 30% × 0.5^(n-1)
   let bonus = 1;
   for (let i = 0; i < transfers; i++) {
     bonus += 0.30 * Math.pow(0.6, i);
@@ -134,11 +158,7 @@ function transferBonus(transfers: number): number {
 
 export function recomputeTransferStats(): void {
   const s = getState();
-  // Only count transfers between OPERATING routes; under-construction
-  // routes don't carry passengers yet.
   const operating = s.routes.filter((r) => r.status === "operating");
-
-  // For each operating route, count distinct transfer partners.
   const transfersById = new Map<number, number>();
   for (const r of operating) transfersById.set(r.id, 0);
 
@@ -151,7 +171,7 @@ export function recomputeTransferStats(): void {
         for (const sb of b.stations) {
           if (approxDistM(sa, sb) <= TRANSFER_RADIUS_M) {
             transfers++;
-            break; // each station of `a` can transfer at most once with `b`
+            break;
           }
         }
       }
@@ -162,8 +182,6 @@ export function recomputeTransferStats(): void {
     }
   }
 
-  // Recompute ridership for ALL routes (under-construction routes show
-  // their would-be ridership for player-feedback purposes).
   const updated = s.routes.map((r) => {
     const mode = getMode(r.mode);
     const base = estimateDensityRidership(mode, r.stations, r.lengthMi);
@@ -200,8 +218,6 @@ export function totalTransfers(): number {
   );
 }
 
-// Cancel an in-construction route. Refunds 70% of capital spent so far;
-// the remaining 30% is sunk cost (planning, mobilization, demolition).
 export function cancelConstruction(routeId: number): void {
   const s = getState();
   const r = s.routes.find((x) => x.id === routeId);
@@ -216,7 +232,6 @@ export function cancelConstruction(routeId: number): void {
   recomputeTransferStats();
 }
 
-// Shut down an operating route. Big approval hit, no refund.
 export function shutdownRoute(routeId: number): void {
   const s = getState();
   const r = s.routes.find((x) => x.id === routeId);
@@ -228,24 +243,47 @@ export function shutdownRoute(routeId: number): void {
   recomputeTransferStats();
 }
 
-// Live preview of cost + length for a list of pending stations, without
-// committing or running pathfinding (uses haversine for speed).
+// Live preview of cost + length + ridership + ROW share for a list of
+// pending stations. Uses straight-line haversine for length (cheap), but
+// passes a rough polyline through corridor-overlap to give the player a
+// real sense of how much ROW their proposed line would hug.
+export interface RoutePreview {
+  lengthMi: number;
+  capitalCostM: number;
+  estBuildMonths: number;
+  dailyRiders: number;
+  railShare: number;
+  freewayShare: number;
+}
+
 export function previewRoute(
   stations: [number, number][],
   modeId: ModeId,
-): { lengthMi: number; capitalCostM: number; estBuildMonths: number } {
-  if (stations.length < 2) return { lengthMi: 0, capitalCostM: 0, estBuildMonths: 0 };
+  opts: ConstructionOpts = defaultOpts,
+): RoutePreview {
+  if (stations.length < 2) {
+    return { lengthMi: 0, capitalCostM: 0, estBuildMonths: 0, dailyRiders: 0, railShare: 0, freewayShare: 0 };
+  }
   const mode = getMode(modeId);
   let len = 0;
   for (let i = 0; i + 1 < stations.length; i++) {
     len += haversineMi(stations[i], stations[i + 1]);
   }
-  // Street-following routes are usually 1.2-1.4x crow-flies in LA.
-  const adjLen = len * 1.3;
-  const cost = adjLen * mode.capitalCostPerMileM;
+  const adjLen = len * 1.3; // street-following is usually 1.2-1.4x crow
+  const baseCost = adjLen * mode.capitalCostPerMileM;
+  const { railShare, freewayShare } = computeRowOverlap(stations);
+  const rowDiscount = constructionDiscount(railShare, freewayShare);
+  const optMults = optionMults(opts);
+  const cost = baseCost * rowDiscount.costMult * optMults.costMult;
+  const baseMonths = estimateBuildMonths(modeId, baseCost);
+  const months = Math.max(1, Math.round(baseMonths * rowDiscount.timeMult * optMults.timeMult));
+  const riders = estimateDensityRidership(mode, stations, adjLen);
   return {
     lengthMi: adjLen,
     capitalCostM: cost,
-    estBuildMonths: estimateBuildMonths(modeId, cost),
+    estBuildMonths: months,
+    dailyRiders: riders,
+    railShare,
+    freewayShare,
   };
 }

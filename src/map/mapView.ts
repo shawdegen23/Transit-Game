@@ -312,7 +312,10 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
       ) return;
     }
     setState({
-      pending: { stations: [...stations, lngLat] },
+      pending: {
+        stations: [...stations, lngLat],
+        opts: s.pending?.opts ?? { designBuild: false, shifts247: false },
+      },
     });
   });
 
@@ -326,7 +329,11 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
       const stations = getState().pending!.stations;
       if (stations.length === 0) return;
       const next = stations.slice(0, -1);
-      setState({ pending: next.length === 0 ? null : { stations: next } });
+      setState({
+        pending: next.length === 0
+          ? null
+          : { stations: next, opts: getState().pending!.opts },
+      });
     }
   });
 

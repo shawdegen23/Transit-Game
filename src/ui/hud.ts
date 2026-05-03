@@ -27,10 +27,9 @@ import {
   applyForCIG,
   applyForTIRCP,
   issueBond,
+  adjustFare,
   type BallotMeasure,
   type NIMBYEvent,
-  type CIGApplication,
-  type TIRCPApplication,
 } from "../sim/events";
 import { previewMonthlyFlows } from "../sim/tick";
 import {
@@ -131,6 +130,10 @@ export function initHud(): void {
     }
   });
 
+  // Fare control
+  document.getElementById("fare-up")!.addEventListener("click", () => adjustFare(0.25));
+  document.getElementById("fare-down")!.addEventListener("click", () => adjustFare(-0.25));
+
   // ---- Clock subscription ----
   subscribeClock((cs) => {
     el("stat-date").textContent = formatDate(cs.date);
@@ -146,6 +149,12 @@ export function initHud(): void {
     el("stat-riders").textContent = fmtNumber(totalDailyRiders());
     el("stat-transfers").textContent = fmtNumber(totalTransfers());
     el("stat-approval").textContent = `${s.approvalPct.toFixed(1)}%`;
+    el("fare-val").textContent = `$${s.fareUSD.toFixed(2)}`;
+
+    const adminPill = el("admin-pill");
+    adminPill.textContent = s.adminLabel;
+    adminPill.classList.toggle("friendly", s.adminBias === 1);
+    adminPill.classList.toggle("hostile", s.adminBias === -1);
 
     const nfEl = el("net-flow");
     if (s.lastMonthNetM !== 0 || s.routes.length > 0) {
@@ -179,8 +188,8 @@ export function initHud(): void {
 
     const cc = constructionCount();
     document.title = cc > 0
-      ? `🏗 ${cc} · California Transit Builder — v0.7`
-      : "California Transit Builder — v0.7 (Los Angeles)";
+      ? `🏗 ${cc} · California Transit Builder — v0.8`
+      : "California Transit Builder — v0.8 (Los Angeles)";
 
     // Goal bar — once hit, show "DONE" styling.
     const riders = totalDailyRiders();
@@ -223,15 +232,30 @@ function renderPendingPanel(s: ReturnType<typeof getState>): void {
     root.innerHTML = "";
     return;
   }
-  const preview = previewRoute(s.pending.stations, s.selectedMode);
+  const opts = s.pending.opts;
+  const preview = previewRoute(s.pending.stations, s.selectedMode, opts);
   const canFinish = s.pending.stations.length >= 2;
   const overBudget = preview.capitalCostM > s.capitalBudgetM;
+  const rowPct = ((preview.railShare + preview.freewayShare) * 100).toFixed(0);
+  const rowDetail = preview.railShare > 0 || preview.freewayShare > 0
+    ? `<div class="stat-mini"><span class="label">Right-of-way</span><span class="value" style="color:var(--good)">${rowPct}%</span></div>`
+    : "";
   root.innerHTML = `
     <div class="pending-panel">
       <div class="stat-mini"><span class="label">Stations</span><span class="value">${s.pending.stations.length}</span></div>
       <div class="stat-mini"><span class="label">Length</span><span class="value">${preview.lengthMi.toFixed(1)} mi</span></div>
       <div class="stat-mini"><span class="label">Capital</span><span class="value ${overBudget ? "bad" : ""}">${fmtMoneyM(preview.capitalCostM)}</span></div>
       <div class="stat-mini"><span class="label">Build time</span><span class="value">${preview.estBuildMonths} mo</span></div>
+      <div class="stat-mini"><span class="label">Est. riders</span><span class="value">${preview.dailyRiders.toLocaleString()}/d</span></div>
+      ${rowDetail}
+      <label class="opt-toggle ${opts.designBuild ? "active" : ""}">
+        <input type="checkbox" id="opt-db" ${opts.designBuild ? "checked" : ""} />
+        Design-build
+      </label>
+      <label class="opt-toggle ${opts.shifts247 ? "active" : ""}">
+        <input type="checkbox" id="opt-247" ${opts.shifts247 ? "checked" : ""} />
+        24/7 shifts
+      </label>
       <button id="pending-cancel">Cancel (Esc)</button>
       <button id="pending-finish" class="primary" ${canFinish ? "" : "disabled"}>Finish line${canFinish ? " (Enter)" : ""}</button>
     </div>
@@ -239,9 +263,17 @@ function renderPendingPanel(s: ReturnType<typeof getState>): void {
   document.getElementById("pending-cancel")!.addEventListener("click", () => {
     setState({ pending: null });
   });
+  document.getElementById("opt-db")!.addEventListener("change", (e) => {
+    if (!s.pending) return;
+    setState({ pending: { ...s.pending, opts: { ...s.pending.opts, designBuild: (e.target as HTMLInputElement).checked } } });
+  });
+  document.getElementById("opt-247")!.addEventListener("change", (e) => {
+    if (!s.pending) return;
+    setState({ pending: { ...s.pending, opts: { ...s.pending.opts, shifts247: (e.target as HTMLInputElement).checked } } });
+  });
   if (canFinish) {
     document.getElementById("pending-finish")!.addEventListener("click", () => {
-      const seg = buildSegment(s.pending!.stations, s.selectedMode);
+      const seg = buildSegment(s.pending!.stations, s.selectedMode, s.pending!.opts);
       commitSegment(seg);
     });
   }

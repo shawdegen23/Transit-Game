@@ -6,33 +6,37 @@ import { defaultGoalState, type GoalState } from "../sim/goal";
 
 export type RouteStatus = "construction" | "operating";
 
+export interface ConstructionOpts {
+  designBuild: boolean;  // -15% time, +10% cost
+  shifts247: boolean;    // -20% time, +25% cost
+}
+
+export const defaultOpts: ConstructionOpts = { designBuild: false, shifts247: false };
+
 export interface RouteSegment {
   id: number;
-  // Player-placed stations along the route, ordered. >= 2 entries.
   stations: [number, number][];
   mode: ModeId;
-  // Length in miles (sum of street-distance per inter-station segment).
   lengthMi: number;
-  // Capital cost in millions USD (TOTAL).
+  // Total capital cost in millions USD (after ROW discount + construction options).
   capitalCostM: number;
-  // Daily boardings when in service (recomputed when transfers change).
   dailyRiders: number;
-  // Concatenated polyline of [lon, lat] coords for the entire route.
-  // Empty array means a fallback straight line; renderer handles both.
   path: [number, number][];
-  // Construction lifecycle.
   status: RouteStatus;
   startMonth: number;
   buildMonths: number;
   monthsBuilt: number;
-  // Number of transfer points this route shares with other operating routes.
-  // Recomputed on each route commit / status change.
   transferCount: number;
+  // Right-of-way overlap shares (0-1) and resulting discount.
+  railShare: number;
+  freewayShare: number;
+  // Construction options chosen at commit time.
+  opts: ConstructionOpts;
 }
 
 export interface PendingRoute {
-  // Stations the player has placed so far on the route in progress.
   stations: [number, number][];
+  opts: ConstructionOpts;
 }
 
 export interface GameState {
@@ -48,6 +52,10 @@ export interface GameState {
   events: EventState;
   goal: GoalState;
   bonds: Bond[];
+  fareUSD: number;
+  // Current administration: -1 hostile, 0 neutral, +1 transit-friendly.
+  adminBias: -1 | 0 | 1;
+  adminLabel: string; // e.g. "Mayor 2026-2030"
 }
 
 type Listener = (s: GameState) => void;
@@ -64,6 +72,9 @@ const initialState: GameState = {
   events: defaultEventState(),
   goal: defaultGoalState(),
   bonds: [],
+  fareUSD: 1.75,
+  adminBias: 0,
+  adminLabel: "Mayor 2026-2030 (neutral)",
 };
 
 let state: GameState = { ...initialState };

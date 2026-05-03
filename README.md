@@ -7,7 +7,7 @@ California maps — starting with Los Angeles.
 
 See [DESIGN.md](./DESIGN.md) for the full vision, scope, and roadmap.
 
-## Status: v0.7 (more funding, more friction, more sandbox)
+## Status: v0.8 (smart construction + live planning)
 
 What's playable today:
 - Real isometric map of Los Angeles (MapLibre + deck.gl, dark basemap)
@@ -53,6 +53,17 @@ What's playable today:
 - **Soft deadline**: 2040 / 500k riders is a celebration milestone, not
   a game-over. The game keeps running so you can build a system you're
   proud of.
+- **Right-of-way discounts**: routes that hug existing rail corridors or
+  freeway medians get major cost + time discounts. The pending panel
+  shows ROW % live as you place stations.
+- **Construction options** in the pending panel: toggle **design-build**
+  (faster + costlier) and **24/7 shifts** (much faster + much costlier).
+- **Live ridership preview** while drawing — see estimated daily riders
+  update with every station you place.
+- **Fare hike controls** in the topbar (±$0.25). Price elasticity ≈ -0.4:
+  fare increases boost revenue but cost ridership and approval.
+- **Mayor / governor turnover** every 4 sim years with friendly / neutral /
+  hostile bias affecting grant odds and approval baseline.
 
 ## Run it
 
@@ -61,8 +72,9 @@ You need Node 18+ and npm.
 ```bash
 npm install        # already done if node_modules exists
 npm run gtfs       # one-time: fetches LA Metro Rail GTFS
-npm run streets    # one-time: fetches the LA County street graph (~3-7 min, 12 tiles)
+npm run streets    # one-time: fetches the LA County street graph (~3-7 min)
 npm run places     # one-time: fetches LA-area OSM population centers
+npm run corridors  # one-time: fetches LA-area rail + freeway corridors (~3-7 min)
 npm run dev
 ```
 
@@ -122,9 +134,8 @@ src/
   data/la-bbox.ts          # LA viewport constants
 ```
 
-## What's next (v0.8)
+## What's next (v0.9)
 
-- Construction acceleration: build along existing rail right-of-way for
-  cost/time discount; design-build contracting; pre-cast tunnels
-- More political factors: mayor/governor turnover, CEQA review, hearings
-- Fare-hike decisions (more revenue, less ridership)
+- Geographic realism: terrain, rivers, scenarios as overlays/constraints
+- Pick-your-own scenario at game start (Olympics 2028, Pacific Electric)
+- Visual rendering of corridor overlays (semi-transparent rail/freeway hints)

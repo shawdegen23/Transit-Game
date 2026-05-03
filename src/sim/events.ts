@@ -241,10 +241,11 @@ function resolveInflight(): void {
       remaining.push(ev);
       continue;
     }
-    // Approval probability: CIG ≈ 35% base, TIRCP ≈ 55% base, +/- approval modifier.
+    // CIG ≈ 35% base, TIRCP ≈ 55% base. Bias from approval AND admin.
     const base = ev.kind === "cig_application" ? 0.35 : 0.55;
     const approvalMod = (s.approvalPct - 50) / 200; // ±0.25 from approval
-    const approved = Math.random() < base + approvalMod;
+    const adminMod = s.adminBias * 0.10; // ±0.10 from admin bias
+    const approved = Math.random() < base + approvalMod + adminMod;
     const resolved = { ...ev, outcome: (approved ? "approved" : "rejected") as "approved" | "rejected" };
     if (approved) {
       capitalGain += ev.awardM;
@@ -391,11 +392,79 @@ export function resolveEvent(
 
 // ---------- Tick wiring ----------
 
+// ---------- Fare adjustments ----------
+
+const BASE_FARE = 1.75; // baseline against which elasticity is anchored
+
+// Adjust fare by deltaUSD. Positive = hike, negative = cut. Approval moves
+// in opposite direction; ridership rebalances in tick via fareElasticity().
+export function adjustFare(deltaUSD: number): void {
+  const s = getState();
+  const newFare = Math.max(0.25, Math.round((s.fareUSD + deltaUSD) * 100) / 100);
+  if (newFare === s.fareUSD) return;
+  // Approval shock: $0.25 hike = -1.5 approval, $0.25 cut = +1.0 approval
+  const approvalDelta = deltaUSD > 0 ? -1.5 : 1.0;
+  setState({
+    fareUSD: newFare,
+    approvalPct: Math.max(0, Math.min(100, s.approvalPct + approvalDelta)),
+  });
+}
+
+// Fare-to-ridership elasticity factor: how much riders scale with fare
+// vs. baseline. Elasticity ≈ -0.4 (transit-typical).
+export function fareElasticity(fareUSD: number): number {
+  // r = (fare/base)^elasticity; elasticity is negative.
+  const elasticity = -0.4;
+  return Math.pow(fareUSD / BASE_FARE, elasticity);
+}
+
+// ---------- Admin turnover ----------
+
+const ADMIN_TERM_MONTHS = 48; // 4-year terms
+const ADMIN_LABELS = {
+  "-1": "hostile",
+  "0": "neutral",
+  "1": "transit-friendly",
+} as const;
+
+function maybeRotateAdmin(): void {
+  const s = getState();
+  const now = getDate();
+  const m = dateToMonthIndex(now.year, now.month);
+  // Rotate every ADMIN_TERM_MONTHS aligned to game start.
+  // Game starts Jan 2026; first rotation Jan 2030, then Jan 2034, etc.
+  const startM = 2026 * 12; // Jan 2026
+  const monthsSinceStart = m - startM;
+  if (monthsSinceStart <= 0) return;
+  if (monthsSinceStart % ADMIN_TERM_MONTHS !== 0) return;
+
+  // Bias distribution: 30% friendly, 50% neutral, 20% hostile, slight pull
+  // toward neutral if previous bias was extreme.
+  const r = Math.random();
+  let bias: -1 | 0 | 1;
+  if (r < 0.3) bias = 1;
+  else if (r < 0.8) bias = 0;
+  else bias = -1;
+
+  const termStartYear = now.year;
+  const termEndYear = termStartYear + 4;
+  const label = `Mayor ${termStartYear}-${termEndYear} (${ADMIN_LABELS[String(bias) as "-1" | "0" | "1"]})`;
+
+  // Approval shock based on new bias.
+  const shock = bias === 1 ? 4 : bias === -1 ? -4 : 0;
+  setState({
+    adminBias: bias,
+    adminLabel: label,
+    approvalPct: Math.max(0, Math.min(100, s.approvalPct + shock)),
+  });
+}
+
 let started = false;
 export function startEvents(): void {
   if (started) return;
   started = true;
   onMonth(() => {
+    maybeRotateAdmin();
     maybeSpawnBallot();
     maybeSpawnNIMBY();
     resolveInflight();

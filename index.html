@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>California Transit Builder — v0.7 (Los Angeles)</title>
+    <title>California Transit Builder — v0.8 (Los Angeles)</title>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
     <style>
       :root {
@@ -280,6 +280,53 @@
       }
       .toast.bad { border-color: var(--bad); }
 
+      /* Fare control + admin pill */
+      .fare-control {
+        display: flex; align-items: center; gap: 4px;
+        padding: 0 8px; border-left: 1px solid var(--border);
+      }
+      .fare-control .fare-val { font-size: 12px; font-variant-numeric: tabular-nums; min-width: 38px; text-align: center; }
+      .fare-control button {
+        background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+        width: 22px; height: 22px; border-radius: 4px; font-weight: 700; cursor: pointer;
+      }
+      .fare-control button:hover { background: #232a36; }
+
+      .admin-pill {
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        color: var(--muted);
+        margin-left: 4px;
+      }
+      .admin-pill.friendly { color: var(--good); border-color: var(--good); }
+      .admin-pill.hostile  { color: var(--bad); border-color: var(--bad); }
+
+      /* Construction options toggles in pending panel */
+      .opt-toggle {
+        display: flex; align-items: center; gap: 4px;
+        padding: 4px 8px;
+        background: var(--panel-2); border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 11px; cursor: pointer;
+        user-select: none;
+      }
+      .opt-toggle input { margin: 0; cursor: pointer; }
+      .opt-toggle.active { border-color: var(--accent); color: var(--accent); }
+
+      /* ROW indicator */
+      .row-bar {
+        position: relative;
+        height: 4px;
+        width: 60px;
+        background: var(--panel-2);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      .row-bar .rail-fill { height: 100%; background: var(--good); }
+
       /* Goal bar across bottom of topbar */
       .goal-bar {
         position: absolute;
@@ -380,7 +427,14 @@
       <div class="topbar">
         <div class="title">California Transit Builder</div>
         <div class="agency">LA Metro · Sandbox</div>
+        <span class="admin-pill" id="admin-pill">Mayor 2026-2030 (neutral)</span>
         <div class="spacer"></div>
+        <div class="fare-control">
+          <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;">Fare</span>
+          <button id="fare-down" title="Cut fare $0.25">−</button>
+          <span class="fare-val" id="fare-val">$1.75</span>
+          <button id="fare-up" title="Hike fare $0.25">+</button>
+        </div>
         <div class="stat">
           <div class="label">Capital</div>
           <div class="value good" id="stat-capital">$2.40B</div>
