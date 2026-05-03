@@ -3,9 +3,11 @@
 A realistic public transit builder game. Plan, fund, and operate transit on real
 California maps — starting with Los Angeles.
 
+**Live build:** [transit-game.vercel.app](https://transit-game.vercel.app)
+
 See [DESIGN.md](./DESIGN.md) for the full vision, scope, and roadmap.
 
-## Status: v0.3 (street-following routes)
+## Status: v0.4 (real game loop)
 
 What's playable today:
 - Real isometric map of Los Angeles (MapLibre + deck.gl, dark basemap)
@@ -13,19 +15,16 @@ What's playable today:
   and K Lines with their actual colors and alignments
 - Toolbar with five transit modes (bus, BRT, light rail, subway, commuter rail)
 - **Click two points to build a route — it pathfinds along real LA streets**
-  using a cached street graph (Dijkstra over an edge-contracted OSM extract)
-- Endpoints snap instantly to the nearest street intersection (local spatial
-  index, no network calls per click)
-- True street-distance length and cost (not haversine)
-- Live HUD showing capital budget, operating budget, daily ridership estimate,
-  voter approval, and date
-- Route inspector listing every line you've built with length, cost, and riders
-
-> **Coverage note:** v0.3's street graph covers downtown LA and immediate
-> surroundings. Outside the bbox, routes fall back to straight lines. The
-> bbox is one constant in `scripts/fetch-streets.mjs` — widening it requires
-> a healthy Overpass API or, ideally, the Geofabrik migration planned for
-> v0.3.x.
+  using a cached county-wide street graph (36k junctions / 60k edges)
+- Endpoints snap instantly to the nearest street intersection
+- **Real-time game clock** with Pause / 1× / 4× / 16× speed (Space to pause)
+- **Construction queue**: new routes start under construction. Capital
+  drains evenly during construction; routes go live when finished
+- **Monthly budget tick**: fare revenue + sales tax flow in, operating costs
+  flow out. Net cash flow shown in the topbar
+- Approval rises when routes complete, falls when budget goes negative
+- Live HUD: capital, operating, daily riders, approval, date, net flow
+- Route inspector showing build % and time-to-open during construction
 
 ## Run it
 
@@ -34,12 +33,13 @@ You need Node 18+ and npm.
 ```bash
 npm install        # already done if node_modules exists
 npm run gtfs       # one-time: fetches LA Metro Rail GTFS
-npm run streets    # one-time: fetches the LA street graph (~30-60s)
+npm run streets    # one-time: fetches the LA County street graph (~3-7 min, 12 tiles)
 npm run dev
 ```
 
 The two `fetch-*` scripts only need to run once (or to refresh the data).
-Both write to `public/`.
+Both write to `public/`. The street fetch caches per-tile in `/tmp` so a
+re-run resumes instantly if interrupted.
 
 Vite will open `http://localhost:5173` automatically.
 
@@ -48,13 +48,14 @@ Vite will open `http://localhost:5173` automatically.
 - **Click** a point on the map to start a route, **click again** to finish it.
   Both endpoints snap to the nearest street intersection.
 - **Esc** cancels a pending route.
+- **Space** toggles pause / play.
 - **Right-click + drag** to rotate / change pitch (the isometric look).
 - **Scroll** to zoom; **left-click + drag** to pan.
 
 ## Stack
 
 - TypeScript + Vite
-- MapLibre GL (basemap; dark Carto style by default)
+- MapLibre GL (basemap; dark Carto style)
 - deck.gl (transit lines, stations, baseline rail PathLayer)
 - LA Metro GTFS (baseline rail network, build-time fetch)
 - OpenStreetMap via Overpass (street graph for pathfinding, build-time fetch)
@@ -64,29 +65,30 @@ Vite will open `http://localhost:5173` automatically.
 ```
 scripts/
   fetch-gtfs.mjs           # downloads LA Metro Rail GTFS → GeoJSON
-  fetch-streets.mjs        # downloads LA major-road graph → contracted JSON
+  fetch-streets.mjs        # tiled Overpass → contracted street graph JSON
 public/
   la-metro-rail.geojson    # generated; existing rail network
-  la-streets.json          # generated; street graph for pathfinding
+  la-streets.json          # generated; full LA County street graph
 src/
   main.ts                  # entry point
   map/
     mapView.ts             # MapLibre + deck.gl + click-to-build
-    baselineNetwork.ts     # loader for LA Metro Rail GeoJSON
+    baselineNetwork.ts     # LA Metro Rail loader
     streetGraph.ts         # graph load + spatial index + Dijkstra
-    snap.ts                # (legacy v0.2 Overpass snap; kept as fallback)
+    snap.ts                # (legacy v0.2 Overpass snap; unused)
   game/
     modes.ts               # transit modes (cost, capacity, color)
     state.ts               # central game state + subscribers
-    routes.ts              # build segment + ridership stub
-  ui/hud.ts                # topbar + toolbar + inspector + legend
+    routes.ts              # build segment, ridership stub, helpers
+    clock.ts               # game clock + speed controls
+  sim/
+    tick.ts                # monthly tick: construction, budget, approval
+  ui/hud.ts                # topbar + toolbar + inspector + time controls
   data/la-bbox.ts          # LA viewport constants
 ```
 
-## What's next (v0.3.x → v0.4)
+## What's next (v0.5)
 
-- Switch the street-graph pipeline from Overpass to a Geofabrik OSM extract
-  for full LA County coverage and reliability
-- ACS population layer + 0.5-mile station-area ridership model
-- Monthly budget tick (capital drawdown during construction, operating ledger)
-- First political event (a ballot measure that adds capital if it passes)
+- ACS population layer + real ridership model based on stations near population
+- First ballot measure event (capital injection on voter approval)
+- First win/lose conditions

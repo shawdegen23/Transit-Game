@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>California Transit Builder — v0.3 (Los Angeles)</title>
+    <title>California Transit Builder — v0.4 (Los Angeles)</title>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
     <style>
       :root {
@@ -139,6 +139,48 @@
       /* MapLibre attribution color tweak for dark theme */
       .maplibregl-ctrl-attrib { background: rgba(22,27,34,0.7) !important; }
       .maplibregl-ctrl-attrib a { color: var(--muted) !important; }
+
+      /* Time controls in the topbar */
+      .time-controls {
+        display: flex; align-items: center; gap: 4px;
+        padding: 0 12px; border-left: 1px solid var(--border);
+      }
+      .speed-btn {
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        font-variant-numeric: tabular-nums;
+        min-width: 28px;
+      }
+      .speed-btn:hover { background: #232a36; }
+      .speed-btn.active { border-color: var(--accent); background: #2a2418; color: var(--accent); }
+      .net-flow {
+        font-size: 10px;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+        margin-left: 4px;
+      }
+      .net-flow.good { color: var(--good); }
+      .net-flow.bad { color: var(--bad); }
+
+      /* Route status pills */
+      .pill {
+        display: inline-block;
+        padding: 1px 5px;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+        margin-left: 4px;
+      }
+      .pill.construction { background: #2a2418; color: var(--accent); }
+      .pill.operating    { background: #1a2e1a; color: var(--good); }
     </style>
   </head>
   <body>
@@ -167,7 +209,14 @@
         </div>
         <div class="stat clock">
           <div class="label">Date</div>
-          <div class="value" id="stat-date">Jan 2026</div>
+          <div class="value" id="stat-date">Jan 1, 2026</div>
+        </div>
+        <div class="time-controls" id="time-controls">
+          <button class="speed-btn" data-speed="0" title="Pause (Space)">‖‖</button>
+          <button class="speed-btn" data-speed="1" title="1× speed">1×</button>
+          <button class="speed-btn" data-speed="2" title="4× speed">4×</button>
+          <button class="speed-btn" data-speed="3" title="16× speed">16×</button>
+          <span class="net-flow" id="net-flow"></span>
         </div>
       </div>
 
@@ -178,8 +227,8 @@
         </div>
         <div class="hint">
           Click two points on the map to draw a line in the selected mode.
-          Routes follow real LA streets via shortest-path. Cost shown is per
-          mile (rough US averages).
+          Routes follow real LA streets via shortest-path. New routes start
+          under construction; press Play (1×/4×/16×) to advance time.
         </div>
 
         <h3 style="margin-top:14px;">Existing Metro Rail</h3>

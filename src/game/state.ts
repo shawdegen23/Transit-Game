@@ -1,24 +1,33 @@
-// Lightweight central state. We use a hand-rolled subscriber store for the MVP
-// to avoid pulling in zustand before we need it; the API mirrors zustand so we
-// can swap it in painlessly later.
+// Lightweight central state with a hand-rolled subscriber store.
 
 import type { ModeId } from "./modes";
 
+export type RouteStatus = "construction" | "operating";
+
 export interface RouteSegment {
+  id: number;
   // [lon, lat] pairs.
   from: [number, number];
   to: [number, number];
   mode: ModeId;
-  // Length in miles (computed from the actual street path when available,
-  // falls back to haversine if no path was found).
+  // Length in miles (street-distance when available, haversine fallback).
   lengthMi: number;
-  // Capital cost in millions USD.
+  // Capital cost in millions USD (TOTAL).
   capitalCostM: number;
-  // Crude daily ridership estimate.
+  // Crude daily ridership estimate when in service.
   dailyRiders: number;
   // Polyline of [lon, lat] coords from `from` to `to` along the street graph.
   // Empty array means a fallback straight line; renderer handles both.
   path: [number, number][];
+
+  // --- Construction lifecycle ---
+  status: RouteStatus;
+  // Game-month when construction started.
+  startMonth: number;
+  // Total construction duration in months.
+  buildMonths: number;
+  // Months elapsed in construction so far.
+  monthsBuilt: number;
 }
 
 export interface GameState {
@@ -30,7 +39,10 @@ export interface GameState {
   capitalBudgetM: number;
   operatingBudgetM: number;
   approvalPct: number;
-  dateLabel: string;
+  // Most recent monthly net cash flow (millions USD), positive = surplus.
+  lastMonthNetM: number;
+  // Monotonically increasing route id source.
+  nextRouteId: number;
 }
 
 type Listener = (s: GameState) => void;
@@ -42,7 +54,8 @@ const initialState: GameState = {
   capitalBudgetM: 2400,
   operatingBudgetM: 1850,
   approvalPct: 62,
-  dateLabel: "Jan 2026",
+  lastMonthNetM: 0,
+  nextRouteId: 1,
 };
 
 let state: GameState = { ...initialState };

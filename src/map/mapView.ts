@@ -93,8 +93,23 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
     }
 
     // Player routes: prefer the street-pathfound polyline; fall back to
-    // a straight LineLayer for segments that didn't get a path.
+    // a straight LineLayer for segments that didn't get a path. Operating
+    // routes render at full opacity; under-construction routes render
+    // semi-transparent and slightly thinner.
     if (s.routes.length > 0) {
+      const widthFor = (d: RouteSegment) => {
+        const m = getMode(d.mode);
+        const base = m.id === "hrt" ? 9
+          : m.id === "lrt" || m.id === "commuter" ? 7
+          : m.id === "brt" ? 5
+          : 3;
+        return d.status === "construction" ? Math.max(2, base - 2) : base;
+      };
+      const colorFor = (d: RouteSegment): [number, number, number, number] => {
+        const [r, g, b] = getMode(d.mode).color;
+        return d.status === "construction" ? [r, g, b, 110] : [r, g, b, 255];
+      };
+
       const pathRoutes = s.routes.filter((r) => r.path.length > 1);
       const straightRoutes = s.routes.filter((r) => r.path.length <= 1);
 
@@ -104,18 +119,14 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
             id: "routes-paths",
             data: pathRoutes,
             getPath: (d: RouteSegment) => d.path,
-            getColor: (d: RouteSegment) => getMode(d.mode).color,
-            getWidth: (d: RouteSegment) => {
-              const m = getMode(d.mode);
-              if (m.id === "hrt") return 9;
-              if (m.id === "lrt" || m.id === "commuter") return 7;
-              if (m.id === "brt") return 5;
-              return 3;
-            },
+            getColor: colorFor,
+            getWidth: widthFor,
             widthUnits: "pixels",
             capRounded: true,
             jointRounded: true,
             pickable: true,
+            // Trigger redraw whenever any route's status changes.
+            updateTriggers: { getColor: pathRoutes.map((r) => r.status).join(","), getWidth: pathRoutes.map((r) => r.status).join(",") },
           }),
         );
       }
@@ -127,10 +138,11 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
             data: straightRoutes,
             getSourcePosition: (d: RouteSegment) => d.from,
             getTargetPosition: (d: RouteSegment) => d.to,
-            getColor: (d: RouteSegment) => getMode(d.mode).color,
-            getWidth: 4,
+            getColor: colorFor,
+            getWidth: widthFor,
             widthUnits: "pixels",
             pickable: true,
+            updateTriggers: { getColor: straightRoutes.map((r) => r.status).join(","), getWidth: straightRoutes.map((r) => r.status).join(",") },
           }),
         );
       }

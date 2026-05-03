@@ -42,27 +42,33 @@ The game should reward the kinds of decisions real planners face:
 - Click endpoints snap to the nearest OSM street via Overpass API.
 - Existing-network legend so the player can see what's already there.
 
-### v0.3 (current)
+### v0.3 (shipped)
 - Pre-cached street graph (Overpass → edge-contracted JSON) cached as a
-  static asset. Currently covers Downtown LA + immediate surroundings as a
-  pipeline-validation cut; the bbox is one config line in `scripts/fetch-streets.mjs`.
-- Local nearest-junction snap using a uniform-grid spatial index. No more
-  network round-trips per click.
-- Dijkstra shortest-path on the contracted graph. Player routes now follow
-  real streets and report true street-distance (not haversine).
+  static asset.
+- Local nearest-junction snap using a uniform-grid spatial index.
+- Dijkstra shortest-path. Player routes follow real streets.
 
-### v0.3.x → v0.4 prep
-- **Switch street-graph pipeline from Overpass to a Geofabrik OSM extract**
-  (`california-latest.osm.pbf`). Overpass times out for full LA County and
-  is the wrong tool for static asset generation. Geofabrik + osmium gives us
-  a reliable, reproducible pipeline that scales to the full state and
-  unblocks "all of LA County" + eventually "all of California".
+### v0.4 (current)
+- **Full LA County street graph** via chunked Overpass queries (12 tiles,
+  per-tile cache, retry/backoff). 36,706 junctions, 60,429 edges, 14 MB raw
+  / 3.1 MB gzipped. Pathfinding remains <25ms per query.
+- **Real-time game clock**: 1 sim-day per ~333ms at 1×, with pause / 1× /
+  4× / 16× speed controls. Spacebar toggles pause.
+- **Construction queue**: new routes start `under construction` for a
+  duration based on cost + mode (rough rule: 1 month per $50M for LRT,
+  faster for bus/BRT). Capital drains evenly across build months. When
+  build completes, route flips to `operating`.
+- **Monthly budget tick**: fare revenue from operating routes + monthly
+  sales-tax allocation flow into operating budget; per-route operating
+  costs drain it. Net cash flow shown in HUD.
+- **Approval ticks** based on completed routes, operating health, and
+  capital availability.
 
-### v0.4
-- US Census ACS population layer, basic ridership model based on population
-  within 0.5 mi of stations.
-- Simple budget tick: capital cost amortized over construction, operating
-  ledger, fare revenue.
+### v0.5
+- US Census ACS population layer.
+- Real ridership model (population within 0.5mi of stations, not capacity-based).
+- First political event (ballot measure → capital injection if approved).
+- Win/lose conditions (e.g., "reach 1M daily riders by 2050").
 
 ### v0.3
 - Agencies: LA Metro, LADOT, Foothill Transit, Big Blue Bus, etc., each with
@@ -202,9 +208,8 @@ few iterations.
 | v0.1    | LA isometric map, click-to-draw straight line, stub HUD           |
 | v0.2    | Real LA Metro Rail baseline (GTFS), click-to-street snapping      |
 | v0.3    | Local street graph (downtown LA), Dijkstra pathfinding            |
-| v0.3.x  | Switch to Geofabrik extract, expand to full LA County             |
-| v0.4    | ACS pop layer, real ridership model, budget tick                  |
-| v0.5    | Voter approval + ballot measures + first events                   |
+| v0.4    | Full LA County graph + clock + construction + monthly tick        |
+| v0.5    | ACS population, real ridership model, ballot events, win/lose     |
 | v0.5    | Multi-agency, voter approval, simple political events             |
 | v0.6    | Save/load, scenarios                                              |
 | v1.0    | Bay Area + statewide expansion, HSR, polished UI                  |

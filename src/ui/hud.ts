@@ -1,13 +1,30 @@
-// Wires the topbar HUD and the toolbar/inspector panels to game state.
+// Wires the topbar HUD, time controls, toolbar, inspector, and route list
+// to game state and the clock.
 
 import { MODES, type ModeId } from "../game/modes";
-import { totalDailyRiders } from "../game/routes";
-import { getState, setState, subscribe } from "../game/state";
+import { totalDailyRiders, constructionCount } from "../game/routes";
+import { getState, setState, subscribe, type RouteSegment } from "../game/state";
 import { loadBaselineNetwork } from "../map/baselineNetwork";
+import {
+  formatDate,
+  setSpeed,
+  subscribeClock,
+  togglePause,
+  type SpeedIndex,
+} from "../game/clock";
 
 function fmtMoneyM(millions: number): string {
-  if (millions >= 1000) return `$${(millions / 1000).toFixed(2)}B`;
-  return `$${millions.toFixed(0)}M`;
+  const sign = millions < 0 ? "-" : "";
+  const abs = Math.abs(millions);
+  if (abs >= 1000) return `${sign}$${(abs / 1000).toFixed(2)}B`;
+  return `${sign}$${abs.toFixed(0)}M`;
+}
+
+function fmtSignedMoneyM(millions: number): string {
+  const sign = millions >= 0 ? "+" : "−";
+  const abs = Math.abs(millions);
+  if (abs >= 1000) return `${sign}$${(abs / 1000).toFixed(2)}B`;
+  return `${sign}$${abs.toFixed(1)}M`;
 }
 
 function fmtNumber(n: number): string {
@@ -31,7 +48,6 @@ export function initHud(): void {
           return;
         }
         legendEl.innerHTML = "";
-        // Sort by short_name / long_name for stable order.
         const sorted = [...b.features].sort((a, c) =>
           (a.properties.long_name || "").localeCompare(c.properties.long_name || ""),
         );
@@ -72,19 +88,59 @@ export function initHud(): void {
     modeGroup.appendChild(btn);
   }
 
-  // ---- Subscribe to state for all HUD updates ----
+  // ---- Time controls ----
+  const timeControls = el<HTMLDivElement>("time-controls");
+  const speedButtons = timeControls.querySelectorAll<HTMLButtonElement>(".speed-btn");
+  speedButtons.forEach((b) => {
+    b.addEventListener("click", () => {
+      const idx = Number(b.dataset.speed) as SpeedIndex;
+      setSpeed(idx);
+    });
+  });
+
+  // Spacebar toggles pause.
+  window.addEventListener("keydown", (e) => {
+    if (e.code === "Space" && !(e.target instanceof HTMLInputElement)) {
+      e.preventDefault();
+      togglePause();
+    }
+  });
+
+  // ---- Clock subscription (date + speed pill highlight) ----
+  subscribeClock((cs) => {
+    el("stat-date").textContent = formatDate(cs.date);
+    speedButtons.forEach((b) => {
+      const matches = Number(b.dataset.speed) === cs.speedIdx;
+      b.classList.toggle("active", matches);
+    });
+  });
+
+  // ---- Game state subscription ----
   subscribe((s) => {
-    // Top bar stats
     el("stat-capital").textContent = fmtMoneyM(s.capitalBudgetM);
     el("stat-operating").textContent = fmtMoneyM(s.operatingBudgetM);
     el("stat-riders").textContent = fmtNumber(totalDailyRiders());
-    el("stat-approval").textContent = `${s.approvalPct}%`;
-    el("stat-date").textContent = s.dateLabel;
+    el("stat-approval").textContent = `${s.approvalPct.toFixed(1)}%`;
+
+    // Net flow indicator (millions/month)
+    const nfEl = el("net-flow");
+    if (s.lastMonthNetM !== 0 || s.routes.length > 0) {
+      nfEl.textContent = `${fmtSignedMoneyM(s.lastMonthNetM)}/mo`;
+      nfEl.classList.toggle("good", s.lastMonthNetM >= 0);
+      nfEl.classList.toggle("bad", s.lastMonthNetM < 0);
+    } else {
+      nfEl.textContent = "";
+    }
 
     // Capital color cue
     const capEl = el("stat-capital");
     capEl.classList.toggle("bad", s.capitalBudgetM < 100);
     capEl.classList.toggle("good", s.capitalBudgetM >= 500);
+
+    // Approval color
+    const apEl = el("stat-approval");
+    apEl.classList.toggle("bad", s.approvalPct < 40);
+    apEl.classList.toggle("good", s.approvalPct >= 55);
 
     // Active mode highlight
     const buttons = modeGroup.querySelectorAll<HTMLButtonElement>(".mode-btn");
@@ -99,20 +155,39 @@ export function initHud(): void {
         '<div class="empty">No routes yet.<br/>Pick a mode and click two points on the map.</div>';
     } else {
       list.innerHTML = "";
-      s.routes.forEach((r, i) => {
-        const m = MODES.find((x) => x.id === r.mode)!;
-        const row = document.createElement("div");
-        row.className = "route-row";
-        const colorCss = `rgb(${m.color[0]}, ${m.color[1]}, ${m.color[2]})`;
-        row.innerHTML = `
-          <span class="swatch" style="background:${colorCss}"></span>
-          <div class="meta">
-            <div class="name">${m.shortLabel} · Line ${i + 1}</div>
-            <div class="sub">${r.lengthMi.toFixed(2)} mi · ${fmtMoneyM(r.capitalCostM)} · ${fmtNumber(r.dailyRiders)} riders/day</div>
-          </div>
-        `;
-        list.appendChild(row);
-      });
+      s.routes.forEach((r) => renderRouteRow(list, r));
     }
+
+    // Construction badge in title (subtle indicator that things are happening)
+    const cc = constructionCount();
+    document.title = cc > 0
+      ? `🏗 ${cc} · California Transit Builder — v0.4`
+      : "California Transit Builder — v0.4 (Los Angeles)";
   });
+}
+
+function renderRouteRow(list: HTMLElement, r: RouteSegment): void {
+  const m = MODES.find((x) => x.id === r.mode)!;
+  const colorCss = `rgb(${m.color[0]}, ${m.color[1]}, ${m.color[2]})`;
+  const row = document.createElement("div");
+  row.className = "route-row";
+
+  const pill = `<span class="pill ${r.status}">${r.status === "construction" ? "Building" : "Live"}</span>`;
+  let sub: string;
+  if (r.status === "construction") {
+    const pct = Math.round((r.monthsBuilt / r.buildMonths) * 100);
+    const remaining = r.buildMonths - r.monthsBuilt;
+    sub = `${r.lengthMi.toFixed(2)} mi · ${pct}% built · ${remaining}mo to open`;
+  } else {
+    sub = `${r.lengthMi.toFixed(2)} mi · ${r.dailyRiders.toLocaleString()} riders/day`;
+  }
+
+  row.innerHTML = `
+    <span class="swatch" style="background:${colorCss}"></span>
+    <div class="meta">
+      <div class="name">${m.shortLabel} · Line ${r.id} ${pill}</div>
+      <div class="sub">${sub}</div>
+    </div>
+  `;
+  list.appendChild(row);
 }

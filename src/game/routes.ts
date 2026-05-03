@@ -1,6 +1,7 @@
 import { getMode, type ModeId } from "./modes";
 import { getState, setState, type RouteSegment } from "./state";
 import { nearestNode, shortestPath } from "../map/streetGraph";
+import { getDate } from "./clock";
 
 const EARTH_RADIUS_MI = 3958.8;
 const M_PER_MI = 1609.344;
@@ -9,7 +10,6 @@ function toRad(deg: number): number {
   return (deg * Math.PI) / 180;
 }
 
-// Great-circle distance between two [lon, lat] points, in miles.
 export function haversineMi(a: [number, number], b: [number, number]): number {
   const [lon1, lat1] = a;
   const [lon2, lat2] = b;
@@ -23,7 +23,6 @@ export function haversineMi(a: [number, number], b: [number, number]): number {
   return 2 * EARTH_RADIUS_MI * Math.asin(Math.sqrt(h));
 }
 
-// Stub ridership estimate: scaled by mode capacity and length.
 function estimateRidership(mode: ModeId, lengthMi: number): number {
   const m = getMode(mode);
   const baseDaily = m.capacityPphpd * 16 * 0.08;
@@ -31,9 +30,22 @@ function estimateRidership(mode: ModeId, lengthMi: number): number {
   return Math.round(baseDaily * lengthFactor);
 }
 
-// Build a segment that follows real streets from `from` to `to`. If the
-// street graph isn't loaded yet or no path exists, falls back to a straight
-// line (caller can still play).
+// Construction time in months. Loose rule of thumb based on real-world
+// projects: rail takes ~1 month per $50M, BRT and bus are much faster.
+function estimateBuildMonths(modeId: ModeId, capitalCostM: number): number {
+  const m = getMode(modeId);
+  if (m.id === "bus") return Math.max(1, Math.round(capitalCostM / 5));
+  if (m.id === "brt") return Math.max(2, Math.round(capitalCostM / 30));
+  if (m.id === "lrt") return Math.max(12, Math.round(capitalCostM / 50));
+  if (m.id === "hrt") return Math.max(24, Math.round(capitalCostM / 60));
+  // commuter
+  return Math.max(6, Math.round(capitalCostM / 40));
+}
+
+function dateToMonthIndex(year: number, month: number): number {
+  return year * 12 + month;
+}
+
 export function buildSegment(
   from: [number, number],
   to: [number, number],
@@ -60,18 +72,49 @@ export function buildSegment(
 
   const capitalCostM = lengthMi * mode.capitalCostPerMileM;
   const dailyRiders = estimateRidership(modeId, lengthMi);
-  return { from, to, mode: modeId, lengthMi, capitalCostM, dailyRiders, path };
+  const buildMonths = estimateBuildMonths(modeId, capitalCostM);
+  const date = getDate();
+
+  const s = getState();
+  return {
+    id: s.nextRouteId,
+    from,
+    to,
+    mode: modeId,
+    lengthMi,
+    capitalCostM,
+    dailyRiders,
+    path,
+    status: "construction",
+    startMonth: dateToMonthIndex(date.year, date.month),
+    buildMonths,
+    monthsBuilt: 0,
+  };
 }
 
 export function commitSegment(seg: RouteSegment): void {
   const s = getState();
   setState({
     routes: [...s.routes, seg],
-    capitalBudgetM: Math.max(0, s.capitalBudgetM - seg.capitalCostM),
     pendingFrom: null,
+    nextRouteId: s.nextRouteId + 1,
   });
 }
 
 export function totalDailyRiders(): number {
-  return getState().routes.reduce((sum, r) => sum + r.dailyRiders, 0);
+  return getState().routes.reduce(
+    (sum, r) => sum + (r.status === "operating" ? r.dailyRiders : 0),
+    0,
+  );
+}
+
+export function operatingMiles(): number {
+  return getState().routes.reduce(
+    (sum, r) => sum + (r.status === "operating" ? r.lengthMi : 0),
+    0,
+  );
+}
+
+export function constructionCount(): number {
+  return getState().routes.filter((r) => r.status === "construction").length;
 }
