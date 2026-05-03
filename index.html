@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>California Transit Builder — v0.4 (Los Angeles)</title>
+    <title>California Transit Builder — v0.5 (Los Angeles)</title>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
     <style>
       :root {
@@ -181,6 +181,98 @@
       }
       .pill.construction { background: #2a2418; color: var(--accent); }
       .pill.operating    { background: #1a2e1a; color: var(--good); }
+
+      /* Goal bar across bottom of topbar */
+      .goal-bar {
+        position: absolute;
+        top: 48px; left: 0; right: 0;
+        height: 6px;
+        background: var(--panel-2);
+        z-index: 9;
+        overflow: hidden;
+      }
+      .goal-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent), var(--good));
+        transition: width 0.4s ease-out;
+      }
+      .goal-label {
+        position: absolute;
+        top: 56px; left: 50%; transform: translateX(-50%);
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 0 0 6px 6px;
+        padding: 2px 10px;
+        font-size: 11px;
+        color: var(--muted);
+        z-index: 9;
+        font-variant-numeric: tabular-nums;
+      }
+      .goal-label .target { color: var(--text); font-weight: 600; }
+
+      /* Modal overlay (ballot measures + end screen) */
+      .modal-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.65);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 100;
+        backdrop-filter: blur(4px);
+      }
+      .modal {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 24px;
+        max-width: 460px;
+        width: 90%;
+        box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+      }
+      .modal h2 {
+        margin: 0 0 8px 0;
+        font-size: 18px;
+        color: var(--text);
+      }
+      .modal .subtitle {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 16px;
+      }
+      .modal p {
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--text);
+        margin: 0 0 16px 0;
+      }
+      .modal .stat-row {
+        display: flex; justify-content: space-between;
+        font-size: 13px;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--border);
+      }
+      .modal .stat-row:last-of-type { border-bottom: none; }
+      .modal .stat-row .v { font-weight: 600; font-variant-numeric: tabular-nums; }
+      .modal-actions {
+        display: flex; gap: 8px; justify-content: flex-end;
+        margin-top: 20px;
+      }
+      .modal-btn {
+        background: var(--panel-2);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .modal-btn:hover { background: #232a36; }
+      .modal-btn.primary {
+        background: var(--accent);
+        color: #1a1408;
+        border-color: var(--accent);
+      }
+      .modal-btn.primary:hover { filter: brightness(1.1); }
     </style>
   </head>
   <body>
@@ -219,6 +311,11 @@
           <span class="net-flow" id="net-flow"></span>
         </div>
       </div>
+
+      <div class="goal-bar"><div class="goal-bar-fill" id="goal-bar-fill" style="width:0%"></div></div>
+      <div class="goal-label" id="goal-label">— / 500k riders by Jan 2040</div>
+
+      <div id="modal-root"></div>
 
       <div class="toolbar">
         <h3>Build mode</h3>

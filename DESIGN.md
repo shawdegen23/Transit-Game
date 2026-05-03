@@ -64,11 +64,27 @@ The game should reward the kinds of decisions real planners face:
 - **Approval ticks** based on completed routes, operating health, and
   capital availability.
 
-### v0.5
-- US Census ACS population layer.
-- Real ridership model (population within 0.5mi of stations, not capacity-based).
-- First political event (ballot measure → capital injection if approved).
-- Win/lose conditions (e.g., "reach 1M daily riders by 2050").
+### v0.5 (current)
+- **Density-based ridership**: 667 LA-area population centers from OSM
+  (each city/town/suburb/neighbourhood with `population` tag), modeled as
+  2D Gaussian density blobs. Each route synthesizes ~1 station per mile;
+  daily boardings ≈ summed-station-access × mode-share × length-factor.
+  Calibrated so a B-Line clone (DT→Hollywood, HRT, 5mi) hits ~130k
+  riders, matching reality.
+- **Ballot measure events**: ~once every 2-3 sim years, a sales-tax
+  ballot proposal pops up. Player accepts or declines. If accepted, pass
+  probability = current approval vs threshold (with noise). On pass:
+  $1.5–3.5B capital injection. On fail: −4 approval points.
+- **Win/lose conditions**: default goal is **500k daily riders by Jan 2040**.
+  Lose conditions: approval drops below 25%, OR operating budget stays
+  negative for 6 consecutive months, OR deadline passes without target.
+- **Goal progress bar** in topbar, **end-game modal** with restart button.
+
+### v0.6
+- Player-placed intermediate stations (vs auto-synthesized).
+- Multi-line transfers + ridership boost when lines connect.
+- More event types: federal CIG grant cycles, NIMBY opposition, fare hikes.
+- Multiple difficulty levels / starting roles.
 
 ### v0.3
 - Agencies: LA Metro, LADOT, Foothill Transit, Big Blue Bus, etc., each with
@@ -209,7 +225,8 @@ few iterations.
 | v0.2    | Real LA Metro Rail baseline (GTFS), click-to-street snapping      |
 | v0.3    | Local street graph (downtown LA), Dijkstra pathfinding            |
 | v0.4    | Full LA County graph + clock + construction + monthly tick        |
-| v0.5    | ACS population, real ridership model, ballot events, win/lose     |
+| v0.5    | Density ridership, ballot measures, goal/win/lose                 |
+| v0.6    | Player stations, multi-line transfers, more event types           |
 | v0.5    | Multi-agency, voter approval, simple political events             |
 | v0.6    | Save/load, scenarios                                              |
 | v1.0    | Bay Area + statewide expansion, HSR, polished UI                  |

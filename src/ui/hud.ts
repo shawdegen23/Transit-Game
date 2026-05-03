@@ -1,5 +1,5 @@
-// Wires the topbar HUD, time controls, toolbar, inspector, and route list
-// to game state and the clock.
+// Wires the topbar HUD, time controls, toolbar, inspector, route list,
+// goal progress, ballot-measure modal, and end screen to game state.
 
 import { MODES, type ModeId } from "../game/modes";
 import { totalDailyRiders, constructionCount } from "../game/routes";
@@ -11,7 +11,14 @@ import {
   subscribeClock,
   togglePause,
   type SpeedIndex,
+  formatMonthYear,
 } from "../game/clock";
+import { resolveEvent, type BallotMeasure } from "../sim/events";
+import {
+  RIDERSHIP_TARGET,
+  GOAL_DEADLINE_YEAR,
+  type GameOutcome,
+} from "../sim/goal";
 
 function fmtMoneyM(millions: number): string {
   const sign = millions < 0 ? "-" : "";
@@ -158,11 +165,97 @@ export function initHud(): void {
       s.routes.forEach((r) => renderRouteRow(list, r));
     }
 
-    // Construction badge in title (subtle indicator that things are happening)
+    // Construction badge in title
     const cc = constructionCount();
     document.title = cc > 0
-      ? `🏗 ${cc} · California Transit Builder — v0.4`
-      : "California Transit Builder — v0.4 (Los Angeles)";
+      ? `🏗 ${cc} · California Transit Builder — v0.5`
+      : "California Transit Builder — v0.5 (Los Angeles)";
+
+    // Goal bar
+    const riders = totalDailyRiders();
+    const pct = Math.min(100, (riders / RIDERSHIP_TARGET) * 100);
+    el<HTMLDivElement>("goal-bar-fill").style.width = `${pct.toFixed(1)}%`;
+    el("goal-label").innerHTML =
+      `<span class="target">${riders.toLocaleString()}</span> / ${RIDERSHIP_TARGET.toLocaleString()} riders by Jan ${GOAL_DEADLINE_YEAR}`;
+
+    // Modals: pending ballot OR end screen.
+    const modalRoot = el<HTMLDivElement>("modal-root");
+    if (s.goal.outcome) {
+      renderEndModal(modalRoot, s.goal.outcome, riders);
+    } else if (s.events.pending.length > 0) {
+      const ev = s.events.pending[0];
+      if (ev.kind === "ballot_measure") renderBallotModal(modalRoot, ev, s.approvalPct);
+      else modalRoot.innerHTML = "";
+    } else {
+      modalRoot.innerHTML = "";
+    }
+  });
+}
+
+function renderBallotModal(root: HTMLElement, ev: BallotMeasure, currentApproval: number): void {
+  const passLikely = currentApproval >= ev.thresholdPct
+    ? "Likely to pass"
+    : "Risky — current approval is below threshold";
+  const passColor = currentApproval >= ev.thresholdPct ? "var(--good)" : "var(--bad)";
+  root.innerHTML = `
+    <div class="modal-overlay">
+      <div class="modal">
+        <h2>Ballot Measure ${ev.id} — ${formatMonthYear({ year: ev.year, month: ev.month, day: 1 })}</h2>
+        <div class="subtitle">A coalition wants to put a sales-tax measure on the ballot.</div>
+        <p>If voters approve, you'll receive a one-time capital injection. If it fails publicly, voter approval will take a small hit.</p>
+        <div class="stat-row"><span>Capital if passed</span><span class="v">$${ev.capitalIfPassedM.toLocaleString()}M</span></div>
+        <div class="stat-row"><span>Approval needed</span><span class="v">${ev.thresholdPct}%</span></div>
+        <div class="stat-row"><span>Your approval now</span><span class="v">${currentApproval.toFixed(1)}%</span></div>
+        <div class="stat-row"><span>Outlook</span><span class="v" style="color:${passColor}">${passLikely}</span></div>
+        <div class="modal-actions">
+          <button class="modal-btn" id="ballot-decline">Decline</button>
+          <button class="modal-btn primary" id="ballot-accept">Put on ballot</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById("ballot-decline")!.addEventListener("click", () => {
+    resolveEvent(ev.id, "decline");
+  });
+  document.getElementById("ballot-accept")!.addEventListener("click", () => {
+    resolveEvent(ev.id, "accept");
+  });
+}
+
+function renderEndModal(root: HTMLElement, outcome: GameOutcome, riders: number): void {
+  // If already rendered, don't replace (prevents flicker).
+  if (root.dataset.outcome === outcome) return;
+  root.dataset.outcome = outcome;
+
+  const titles: Record<GameOutcome, string> = {
+    won: "🎉 You win",
+    lost_approval: "Approval collapsed",
+    lost_bankrupt: "Bankrupt",
+    lost_deadline: "Time's up",
+  };
+  const subs: Record<GameOutcome, string> = {
+    won: `You hit ${RIDERSHIP_TARGET.toLocaleString()} daily riders before the deadline.`,
+    lost_approval: "Voters lost faith in the agency. Your tenure ends.",
+    lost_bankrupt: "Six months of negative operating budget. The state takes over.",
+    lost_deadline: `${GOAL_DEADLINE_YEAR} arrived and you didn't reach the ridership target.`,
+  };
+
+  setSpeed(0);
+
+  root.innerHTML = `
+    <div class="modal-overlay">
+      <div class="modal">
+        <h2>${titles[outcome]}</h2>
+        <div class="subtitle">${subs[outcome]}</div>
+        <div class="stat-row"><span>Final daily riders</span><span class="v">${riders.toLocaleString()}</span></div>
+        <div class="modal-actions">
+          <button class="modal-btn primary" id="restart-btn">New game</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById("restart-btn")!.addEventListener("click", () => {
+    location.reload();
   });
 }
 

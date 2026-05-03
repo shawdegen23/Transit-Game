@@ -2,6 +2,7 @@ import { getMode, type ModeId } from "./modes";
 import { getState, setState, type RouteSegment } from "./state";
 import { nearestNode, shortestPath } from "../map/streetGraph";
 import { getDate } from "./clock";
+import { estimateRidership as estimateDensityRidership } from "../sim/ridership";
 
 const EARTH_RADIUS_MI = 3958.8;
 const M_PER_MI = 1609.344;
@@ -23,11 +24,13 @@ export function haversineMi(a: [number, number], b: [number, number]): number {
   return 2 * EARTH_RADIUS_MI * Math.asin(Math.sqrt(h));
 }
 
-function estimateRidership(mode: ModeId, lengthMi: number): number {
-  const m = getMode(mode);
-  const baseDaily = m.capacityPphpd * 16 * 0.08;
-  const lengthFactor = Math.min(1, lengthMi / 5);
-  return Math.round(baseDaily * lengthFactor);
+function estimateRidership(
+  mode: ModeId,
+  from: [number, number],
+  to: [number, number],
+  lengthMi: number,
+): number {
+  return estimateDensityRidership(getMode(mode), from, to, lengthMi);
 }
 
 // Construction time in months. Loose rule of thumb based on real-world
@@ -71,7 +74,7 @@ export function buildSegment(
   }
 
   const capitalCostM = lengthMi * mode.capitalCostPerMileM;
-  const dailyRiders = estimateRidership(modeId, lengthMi);
+  const dailyRiders = estimateRidership(modeId, from, to, lengthMi);
   const buildMonths = estimateBuildMonths(modeId, capitalCostM);
   const date = getDate();
 

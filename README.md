@@ -7,7 +7,7 @@ California maps — starting with Los Angeles.
 
 See [DESIGN.md](./DESIGN.md) for the full vision, scope, and roadmap.
 
-## Status: v0.4 (real game loop)
+## Status: v0.5 (it's a game now)
 
 What's playable today:
 - Real isometric map of Los Angeles (MapLibre + deck.gl, dark basemap)
@@ -25,6 +25,16 @@ What's playable today:
 - Approval rises when routes complete, falls when budget goes negative
 - Live HUD: capital, operating, daily riders, approval, date, net flow
 - Route inspector showing build % and time-to-open during construction
+- **Density-based ridership** — 667 OSM population centers as the demand
+  model. Routes through dense areas (Downtown, Westside, Long Beach) draw
+  ~100k+ riders; routes through empty land draw ~hundreds. Calibrated
+  against real LA Metro lines (B Line ≈ 130k matches reality)
+- **Ballot measures** — every 2-3 sim years, a sales-tax measure may
+  appear. Accept it for a chance at $1.5–3.5B capital. Pass probability
+  scales with current voter approval
+- **Goal**: hit 500k daily riders by Jan 2040
+- **Lose conditions**: approval below 25%, 6 months bankrupt, or deadline
+- Goal progress bar across the top, end-game modal with restart
 
 ## Run it
 
@@ -34,6 +44,7 @@ You need Node 18+ and npm.
 npm install        # already done if node_modules exists
 npm run gtfs       # one-time: fetches LA Metro Rail GTFS
 npm run streets    # one-time: fetches the LA County street graph (~3-7 min, 12 tiles)
+npm run places     # one-time: fetches LA-area OSM population centers
 npm run dev
 ```
 
@@ -66,9 +77,11 @@ Vite will open `http://localhost:5173` automatically.
 scripts/
   fetch-gtfs.mjs           # downloads LA Metro Rail GTFS → GeoJSON
   fetch-streets.mjs        # tiled Overpass → contracted street graph JSON
+  fetch-places.mjs         # LA-area OSM places with populations → JSON
 public/
   la-metro-rail.geojson    # generated; existing rail network
   la-streets.json          # generated; full LA County street graph
+  la-places.json           # generated; population centers
 src/
   main.ts                  # entry point
   map/
@@ -79,16 +92,20 @@ src/
   game/
     modes.ts               # transit modes (cost, capacity, color)
     state.ts               # central game state + subscribers
-    routes.ts              # build segment, ridership stub, helpers
+    routes.ts              # build segment, station synth, helpers
     clock.ts               # game clock + speed controls
   sim/
     tick.ts                # monthly tick: construction, budget, approval
-  ui/hud.ts                # topbar + toolbar + inspector + time controls
+    ridership.ts           # density-based daily-rider model
+    events.ts              # ballot measures (and future events)
+    goal.ts                # win/lose tracker
+  ui/hud.ts                # topbar + goal bar + modals + inspector
   data/la-bbox.ts          # LA viewport constants
 ```
 
-## What's next (v0.5)
+## What's next (v0.6)
 
-- ACS population layer + real ridership model based on stations near population
-- First ballot measure event (capital injection on voter approval)
-- First win/lose conditions
+- Player-placed intermediate stations (vs auto-synthesized)
+- Multi-line transfers + ridership boost when lines connect
+- More event types: federal CIG grant cycles, NIMBY opposition
+- Multiple difficulty levels / starting scenarios
