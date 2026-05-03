@@ -171,11 +171,29 @@ The game should reward the kinds of decisions real planners face:
 - **Pending panel** now shows landmark boost %, airport penalty %, and
   the names of landmarks the route would serve.
 
-### v1.1 / Future
+### v1.1 (current)
+- **Save/load slots**: 3 named slots + an autosave that runs every
+  sim-year. All saves persist to `localStorage`. Saves include full game
+  state (routes, bonds, events, goal, clock, fare, admin, scenario,
+  budgets) but skip static data (street graph, places, etc.) which
+  reload fresh.
+- **Menu modal** in topbar: see all save slots with date / scenario /
+  ridership / route count, plus Save / Load / Delete and a New Game
+  button.
+- **Resume on reload**: if you have an autosave, the page asks "Continue
+  your previous game?" instead of forcing the scenario picker.
+- **Ctrl+S** quick-save shortcut.
+- **Schema versioning**: saves include a `version` field so future state
+  shape changes can either migrate or fail gracefully.
+
+### v1.2 / Future
 - Push bbox south to San Diego, east to Inland Empire (Palm Springs).
-- Bay Area as second region (full pipeline replication).
-- Statewide rail (HSR, Amtrak California, regional).
-- Save/load slots.
+- Animated trains traversing operating routes.
+- Service frequency / peak vs off-peak controls.
+- Stats / charts panel + history view.
+- Tutorial / first-time onboarding.
+- Bay Area as second region.
+- Statewide rail (HSR, Amtrak California).
 
 ### v0.3
 - Agencies: LA Metro, LADOT, Foothill Transit, Big Blue Bus, etc., each with
@@ -322,7 +340,9 @@ few iterations.
 | v0.8    | ROW discounts, construction options, live preview, fares, mayor turnover |
 | v0.9    | Corridor overlay, terrain penalties, ocean constraint, scenarios, bond modal |
 | v1.0    | SoCal expansion (+OC +Ventura), landmarks system (LAX, Disney, UCLA, etc.) |
-| v1.1+   | San Diego + Inland Empire bbox, Bay Area, statewide                |
+| v1.1    | Save/load slots, autosave, resume-on-reload, Ctrl+S, menu modal   |
+| v1.2+   | Animated trains, service frequency, charts, tutorial              |
+| v2.0+   | San Diego/IE bbox, Bay Area, statewide                            |
 | v0.5    | Multi-agency, voter approval, simple political events             |
 | v0.6    | Save/load, scenarios                                              |
 | v1.0    | Bay Area + statewide expansion, HSR, polished UI                  |

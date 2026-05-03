@@ -37,6 +37,14 @@ import {
   type GameOutcome,
 } from "../sim/goal";
 import { SCENARIOS, saveScenarioId } from "../sim/scenarios";
+import {
+  saveToSlot,
+  loadFromSlot,
+  deleteSlot,
+  listSlots,
+  hasAutosave,
+  type SlotId,
+} from "../sim/save";
 
 function fmtMoneyM(millions: number): string {
   const sign = millions < 0 ? "-" : "";
@@ -134,6 +142,18 @@ export function initHud(): void {
   document.getElementById("fare-down")!.addEventListener("click", () => adjustFare(-0.25));
 
   // (Corridor toggle is wired directly in mapView.ts via the floating button.)
+
+  // Menu button → save/load modal
+  document.getElementById("menu-btn")!.addEventListener("click", () => openMenuModal());
+
+  // Ctrl+S quick-save
+  window.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) {
+      e.preventDefault();
+      const ok = saveToSlot("auto");
+      flashUiToast(ok ? "Quick-saved." : "Save failed.", ok);
+    }
+  });
 
   // ---- Clock subscription ----
   subscribeClock((cs) => {
@@ -614,6 +634,113 @@ function renderEndModal(root: HTMLElement, outcome: GameOutcome, riders: number)
     </div>
   `;
   document.getElementById("restart-btn")!.addEventListener("click", () => location.reload());
+}
+
+function openMenuModal(): void {
+  const root = el<HTMLDivElement>("modal-root");
+  const previousKind = root.dataset.kind ?? "";
+  root.dataset.kind = "menu";
+
+  const slots = listSlots();
+
+  function fmtSlot(s: ReturnType<typeof listSlots>[number]): string {
+    if (!s.exists) return `<em style="color:var(--muted)">empty</em>`;
+    const dateStr = s.date ? `${MONTH_LABELS_SHORT[s.date.month]} ${s.date.year}` : "";
+    const sc = s.scenarioId ? ` · ${s.scenarioId}` : "";
+    return `${dateStr}${sc} · ${s.dailyRiders?.toLocaleString() ?? 0} riders · ${s.routeCount ?? 0} lines`;
+  }
+
+  const slotsHtml = slots.map((s) => `
+    <div class="stat-row" style="align-items:center;gap:6px;">
+      <span style="min-width:80px;font-weight:600;">${s.id === "auto" ? "Autosave" : `Slot ${s.id}`}</span>
+      <span class="v" style="flex:1;font-size:11px;font-weight:500;color:var(--muted);">${fmtSlot(s)}</span>
+      <button class="modal-btn" data-action="save" data-slot="${s.id}" ${s.id === "auto" ? "" : ""} style="padding:3px 8px;font-size:11px;">Save</button>
+      <button class="modal-btn ${s.exists ? "primary" : ""}" data-action="load" data-slot="${s.id}" ${s.exists ? "" : "disabled"} style="padding:3px 8px;font-size:11px;">Load</button>
+      <button class="modal-btn" data-action="delete" data-slot="${s.id}" ${s.exists ? "" : "disabled"} style="padding:3px 8px;font-size:11px;color:var(--bad);">×</button>
+    </div>
+  `).join("");
+
+  root.innerHTML = `
+    <div class="modal-overlay">
+      <div class="modal" style="max-width: 560px;">
+        <h2>Game menu</h2>
+        <div class="subtitle">Save slots persist in your browser. Autosave runs every sim-year.</div>
+        ${slotsHtml}
+        <div class="modal-actions" style="justify-content:space-between;">
+          <button class="modal-btn" id="menu-newgame" style="color:var(--bad);border-color:var(--bad);">New game (lose progress)</button>
+          <button class="modal-btn primary" id="menu-close">Back to game</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  root.querySelectorAll<HTMLButtonElement>("[data-action]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const action = btn.dataset.action!;
+      const slot = btn.dataset.slot as SlotId;
+      if (action === "save") {
+        const ok = saveToSlot(slot);
+        flashUiToast(ok ? `Saved to ${slot === "auto" ? "autosave" : `slot ${slot}`}.` : "Save failed.", ok);
+        openMenuModal(); // re-render
+      } else if (action === "load") {
+        const ok = loadFromSlot(slot);
+        if (ok) {
+          flashUiToast(`Loaded ${slot === "auto" ? "autosave" : `slot ${slot}`}.`, true);
+          root.innerHTML = "";
+          root.dataset.kind = "";
+        } else {
+          flashUiToast("Load failed.", false);
+        }
+      } else if (action === "delete") {
+        if (confirm(`Delete ${slot === "auto" ? "autosave" : `slot ${slot}`}?`)) {
+          deleteSlot(slot);
+          openMenuModal(); // re-render
+        }
+      }
+    });
+  });
+
+  document.getElementById("menu-newgame")!.addEventListener("click", () => {
+    if (confirm("Start a new game? Current progress will be lost (unless saved).")) {
+      // Reset by reloading + clearing scenarioPicked from any saved scenario.
+      try {
+        // Don't actually clear localStorage saves — just trigger scenario picker.
+        // Reload state to defaults.
+        location.reload();
+      } catch {
+        location.reload();
+      }
+    }
+  });
+  document.getElementById("menu-close")!.addEventListener("click", () => {
+    root.innerHTML = "";
+    root.dataset.kind = previousKind;
+  });
+}
+
+const MONTH_LABELS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+let uiToastTimer: number | null = null;
+function flashUiToast(msg: string, good: boolean): void {
+  let elNode = document.getElementById("ui-toast");
+  if (!elNode) {
+    elNode = document.createElement("div");
+    elNode.id = "ui-toast";
+    elNode.style.cssText = `
+      position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+      color: white; padding: 8px 14px; border-radius: 6px; font-size: 12px;
+      font-weight: 600; z-index: 200; box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      transition: opacity 0.3s;
+    `;
+    document.body.appendChild(elNode);
+  }
+  elNode.style.background = good ? "rgba(63, 185, 80, 0.95)" : "rgba(248, 81, 73, 0.95)";
+  elNode.textContent = msg;
+  elNode.style.opacity = "1";
+  if (uiToastTimer !== null) clearTimeout(uiToastTimer);
+  uiToastTimer = setTimeout(() => {
+    if (elNode) elNode.style.opacity = "0";
+  }, 1800) as unknown as number;
 }
 
 let toastTimer: number | null = null;

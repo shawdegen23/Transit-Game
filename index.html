@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>California Transit Builder — v1.0 (SoCal)</title>
+    <title>California Transit Builder — v1.1 (SoCal)</title>
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
     <style>
       :root {
@@ -462,6 +462,11 @@
       <div id="map"></div>
 
       <div class="topbar">
+        <button id="menu-btn" title="Save / Load / New Game" style="
+          background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+          padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 600;
+          margin-right: 4px;
+        ">☰ Menu</button>
         <div class="title">California Transit Builder</div>
         <div class="agency">LA Metro · Sandbox</div>
         <span class="admin-pill" id="admin-pill">Mayor 2026-2030 (neutral)</span>

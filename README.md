@@ -7,7 +7,7 @@ California maps — starting with Los Angeles.
 
 See [DESIGN.md](./DESIGN.md) for the full vision, scope, and roadmap.
 
-## Status: v1.0 (SoCal + landmarks)
+## Status: v1.1 (save / load / resume)
 
 What's playable today:
 - Real isometric map of Los Angeles (MapLibre + deck.gl, dark basemap)
@@ -84,6 +84,10 @@ What's playable today:
   Bowl, Dodger), hospitals, and malls. Stations near landmarks get a
   ridership boost; routes too close to airports cost more (FAA, runway
   proximity). Toggle visibility with `L` key or the on-map button.
+- **Save/load**: 3 named save slots + autosave every sim-year, all
+  persisted in your browser. Menu button (top-left) opens the save
+  manager. Reload the page → it offers to resume your previous game.
+  `Ctrl+S` (or `Cmd+S`) for quick-save anytime.
 
 ## Run it
 
@@ -156,9 +160,10 @@ src/
   data/la-bbox.ts          # LA viewport constants
 ```
 
-## What's next (v1.1)
+## What's next (v1.2)
 
-- Push bbox south to San Diego + east to Inland Empire / Palm Springs
-- Save/load slots so progress survives across sessions
-- Bay Area as second region (BART/Caltrain/Muni GTFS, street graph, etc.)
-- Statewide rail (HSR, Amtrak California)
+- Animated trains traversing operating routes
+- Per-route service frequency / peak vs off-peak controls
+- Stats / charts panel and history view
+- First-time tutorial flow
+- Eventually: San Diego / Inland Empire bbox, then Bay Area

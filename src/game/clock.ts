@@ -123,3 +123,14 @@ export function formatDate(d: GameDate = state.date): string {
 export function formatMonthYear(d: GameDate = state.date): string {
   return `${MONTH_LABELS[d.month]} ${d.year}`;
 }
+
+// Back-channel for save/load: lets sim/save.ts set the clock without a
+// circular import. Wired at module load.
+if (typeof window !== "undefined") {
+  (window as unknown as Window & { __setClockDate?: (y: number, m: number, d: number) => void })
+    .__setClockDate = (y, m, d) => {
+    state.date = { year: y, month: m, day: d };
+    emitState();
+    for (const l of dayListeners) l(state.date);
+  };
+}
