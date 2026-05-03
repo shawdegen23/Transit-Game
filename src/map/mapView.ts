@@ -2,7 +2,7 @@
 
 import maplibregl from "maplibre-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
-import { LineLayer, ScatterplotLayer, PathLayer } from "@deck.gl/layers";
+import { LineLayer, ScatterplotLayer, PathLayer, TextLayer } from "@deck.gl/layers";
 
 import { LA_INITIAL_VIEW } from "../data/la-bbox";
 import { getMode } from "../game/modes";
@@ -63,16 +63,17 @@ function syncLandmarkButton(): void {
   if (label) label.textContent = showLandmarks ? "Landmarks: ON" : "Landmarks: OFF";
 }
 
-// Color per landmark kind (rgba).
-const LANDMARK_COLOR: Record<string, [number, number, number, number]> = {
-  airport: [255, 200, 100, 230],
-  university: [180, 130, 220, 230],
-  college: [180, 130, 220, 200],
-  hospital: [240, 100, 100, 230],
-  stadium: [100, 200, 240, 230],
-  theme_park: [255, 130, 200, 230],
-  beach: [255, 230, 130, 200],
-  mall: [180, 180, 180, 200],
+// Emoji per landmark kind. We render via TextLayer so they look like real
+// pictograms, not arbitrary colored dots.
+const LANDMARK_EMOJI: Record<string, string> = {
+  airport: "✈️",
+  university: "🎓",
+  college: "🎓",
+  hospital: "🏥",
+  stadium: "🏟️",
+  theme_park: "🎢",
+  beach: "🏖️",
+  mall: "🛍️",
 };
 
 export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
@@ -136,26 +137,77 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
       }
     }
 
-    // Landmark markers — under everything else.
+    // Landmark markers — emoji icons sized by magnitude. Names render
+    // as a separate TextLayer at high zoom only, to avoid a wall of text.
     if (showLandmarks) {
       const lms = getLandmarks();
       if (lms.length > 0) {
+        const zoom = map.getZoom();
+        // Hide tiny ones at low zoom so the map isn't a sea of icons.
+        const visible = zoom < 10
+          ? lms.filter((l) => l.magnitude >= 0.65)
+          : zoom < 11.5
+          ? lms.filter((l) => l.magnitude >= 0.30)
+          : lms;
+
+        // Soft halo behind each icon makes it readable on the dark basemap.
         layers.push(
           new ScatterplotLayer({
-            id: "landmarks",
-            data: lms,
+            id: "landmark-halo",
+            data: visible,
             getPosition: (d: Landmark) => [d.lon, d.lat],
-            getFillColor: (d: Landmark) => LANDMARK_COLOR[d.kind] ?? [200, 200, 200, 200],
-            getLineColor: [10, 10, 10, 220],
-            stroked: true,
-            getRadius: (d: Landmark) => 80 + d.magnitude * 220,
-            radiusMinPixels: 4,
-            radiusMaxPixels: 12,
-            lineWidthMinPixels: 1,
-            opacity: 0.9,
-            pickable: true,
+            getFillColor: [14, 17, 22, 220],
+            stroked: false,
+            getRadius: (d: Landmark) => 60 + d.magnitude * 180,
+            radiusMinPixels: 8,
+            radiusMaxPixels: 16,
           }),
         );
+
+        layers.push(
+          new TextLayer({
+            id: "landmark-icons",
+            data: visible,
+            getPosition: (d: Landmark) => [d.lon, d.lat],
+            getText: (d: Landmark) => LANDMARK_EMOJI[d.kind] ?? "📍",
+            getSize: (d: Landmark) => 14 + d.magnitude * 18,
+            getColor: [255, 255, 255, 255],
+            sizeUnits: "pixels",
+            getTextAnchor: "middle",
+            getAlignmentBaseline: "center",
+            fontFamily:
+              "-apple-system, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif",
+            characterSet: "auto",
+            pickable: true,
+            updateTriggers: {
+              getSize: visible.length,
+              getText: visible.length,
+            },
+          }),
+        );
+
+        // Name labels at high zoom only.
+        if (zoom >= 12) {
+          layers.push(
+            new TextLayer({
+              id: "landmark-labels",
+              data: visible.filter((l) => l.magnitude >= 0.5),
+              getPosition: (d: Landmark) => [d.lon, d.lat],
+              getText: (d: Landmark) => d.name,
+              getSize: 11,
+              sizeUnits: "pixels",
+              getColor: [230, 237, 243, 220],
+              getAlignmentBaseline: "top",
+              getTextAnchor: "middle",
+              getPixelOffset: (d: Landmark) => [0, 14 + d.magnitude * 14],
+              outlineColor: [10, 14, 18, 230],
+              outlineWidth: 2,
+              fontSettings: { sdf: true },
+              fontFamily:
+                "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+            }),
+          );
+        }
       }
     }
 
@@ -331,6 +383,16 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
 
   // Re-render trigger for hover-only changes (hoverPos isn't in game state).
   forceRerender = () => setState({});
+
+  // Re-render landmark layer on zoom changes so we can hide/show by magnitude
+  // and pop labels in at high zoom. Throttled.
+  let zoomThrottle = 0;
+  map.on("zoom", () => {
+    const now = performance.now();
+    if (now - zoomThrottle < 100) return;
+    zoomThrottle = now;
+    forceRerender();
+  });
 
   // Corridor toggle: button click + 'C' key. State persists in localStorage.
   const toggleCorridors = () => {
