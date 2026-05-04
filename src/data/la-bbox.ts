@@ -1,19 +1,19 @@
-// v1.0 starting viewport: centered between LA and OC so the player sees
-// Ventura/Oxnard, San Fernando Valley, downtown LA, OC, and the coast.
+// v1.4 starting viewport: centered for full SoCal so the player can see
+// Ventura → Palm Springs east, San Diego → north LA fringe vertically.
 export const LA_INITIAL_VIEW = {
-  longitude: -118.10,
-  latitude: 33.90,
-  zoom: 9.4,
-  pitch: 45,
-  bearing: -15,
-  minZoom: 8,
+  longitude: -117.80,
+  latitude: 33.65,
+  zoom: 8.4,
+  pitch: 40,
+  bearing: -10,
+  minZoom: 7,
   maxZoom: 18,
 } as const;
 
-// SoCal bbox (matches the data fetch scripts).
+// Full SoCal bbox (matches the data fetch scripts).
 export const LA_BBOX = {
   west: -119.4,
-  south: 33.4,
-  east: -117.4,
-  north: 34.6,
+  south: 32.55,
+  east: -116.0,
+  north: 34.7,
 } as const;

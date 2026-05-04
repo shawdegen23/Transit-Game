@@ -73,8 +73,14 @@ export function loadFromSlot(slot: SlotId): boolean {
       console.warn(`[save] slot version ${blob.version} doesn't match current ${SAVE_VERSION}; load skipped`);
       return false;
     }
-    // Apply state. Reset pending route so we don't restore a half-drawn line.
-    setState({ ...blob.state, pending: null });
+    // Apply state. Reset transient UI state:
+    //  - pending: don't restore a half-drawn line
+    //  - milestoneToast: don't re-fire a toast the player already saw
+    setState({
+      ...blob.state,
+      pending: null,
+      goal: { ...blob.state.goal, milestoneToast: null },
+    });
     // Apply clock state via the clock module.
     setClockFromBlob(blob.clock);
     // Recompute derived data that depends on routes (transfers, ridership).

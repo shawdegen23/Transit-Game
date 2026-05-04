@@ -203,8 +203,24 @@ The game should reward the kinds of decisions real planners face:
   at a glance which lines are running hot. Slim down underused lines to
   cut ops costs; pump up high-demand corridors.
 
-### v1.4 / Future
-- Push bbox south to San Diego, east to Inland Empire (Palm Springs).
+### v1.4 (current)
+- **Full SoCal**: bbox now covers San Diego, Inland Empire (Riverside,
+  San Bernardino, Ontario), Palm Springs / Coachella Valley, in addition
+  to LA / OC / Ventura. Approximately tripled the playable area.
+- Streets graph: 73,602 junctions, 120,108 edges (17 MB raw / 4.2 MB
+  gzipped). Pathfinding still <50ms per query.
+- Corridors: 14,571 rail features + 22,730 freeway features (3.1 MB).
+- Places: 1,949 population centers across SoCal.
+- Terrain: 1,553 mountain zones (San Bernardino Mtns, Cleveland NF,
+  Palomar, etc.).
+- Landmarks: 944 (added SAN airport, Petco Park, UCSD/SDSU/UCR/CSUSB,
+  Balboa Park / SD Zoo, LEGOLAND, SeaWorld, Snapdragon Stadium, Ontario
+  & Palm Springs airports).
+- Coastline check extended down to the Mexican border so ocean clicks
+  along the SD coast bounce too.
+- Default viewport zoomed out to fit the new playable area.
+
+### v1.5 / Future
 - Stats / charts panel + history view.
 - Tutorial / first-time onboarding.
 - Time-of-day modeling (peak vs off-peak frequency).
@@ -359,8 +375,9 @@ few iterations.
 | v1.1    | Save/load slots, autosave, resume-on-reload, Ctrl+S, menu modal   |
 | v1.2    | Animated trains running on operating routes                       |
 | v1.3    | Per-route service frequency (Low/Std/High)                        |
-| v1.4+   | Charts, tutorial, time-of-day, peak/off-peak                      |
-| v2.0+   | San Diego/IE bbox, Bay Area, statewide                            |
+| v1.4    | Full SoCal: San Diego, Inland Empire, Palm Springs                |
+| v1.5+   | Charts, tutorial, time-of-day                                     |
+| v2.0+   | Bay Area, statewide rail                                          |
 | v0.5    | Multi-agency, voter approval, simple political events             |
 | v0.6    | Save/load, scenarios                                              |
 | v1.0    | Bay Area + statewide expansion, HSR, polished UI                  |

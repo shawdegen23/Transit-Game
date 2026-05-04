@@ -7,7 +7,7 @@ California maps — starting with Los Angeles.
 
 See [DESIGN.md](./DESIGN.md) for the full vision, scope, and roadmap.
 
-## Status: v1.3 (run service like a real planner)
+## Status: v1.4 (full Southern California)
 
 What's playable today:
 - Real isometric map of Los Angeles (MapLibre + deck.gl, dark basemap)
@@ -96,6 +96,10 @@ What's playable today:
   High frequency = more riders + more trains visible + more ops cost. Low
   = the opposite. Scale-down underused lines to cut ops; pump up corridors
   with real demand.
+- **Full SoCal**: build everywhere from Ventura/Oxnard to Palm Springs,
+  San Fernando Valley to Tijuana border. San Diego (with UCSD, Petco
+  Park, Balboa Park, SeaWorld, LEGOLAND), Inland Empire (Riverside,
+  San Bernardino, Ontario), Coachella Valley — all in one playable map.
 
 ## Run it
 
@@ -168,9 +172,9 @@ src/
   data/la-bbox.ts          # LA viewport constants
 ```
 
-## What's next (v1.4)
+## What's next (v1.5+)
 
 - Stats / charts panel and history view
 - First-time tutorial flow
 - Time-of-day modeling (peak vs off-peak)
-- Eventually: San Diego / Inland Empire bbox, then Bay Area
+- Eventually: Bay Area as second region, then statewide

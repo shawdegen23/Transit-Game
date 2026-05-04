@@ -31,7 +31,7 @@ import { execSync } from "node:child_process";
 import { readFileSync, rmSync } from "node:fs";
 
 const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
-const BBOX = { west: -119.4, south: 33.4, east: -117.4, north: 34.6 };
+const BBOX = { west: -119.4, south: 32.55, east: -116.0, north: 34.7 };
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = join(__dirname, "..", "public");
@@ -222,6 +222,22 @@ async function main() {
     { kind: "university", lon: -118.2851, lat: 34.0224, name: "USC", magnitude: 0.95 },
     { kind: "university", lon: -118.1252, lat: 34.1377, name: "Caltech", magnitude: 0.85 },
     { kind: "university", lon: -117.8443, lat: 33.6405, name: "UC Irvine", magnitude: 0.85 },
+    // San Diego additions
+    { kind: "airport",    lon: -117.1933, lat: 32.7338, name: "SAN (San Diego International)", magnitude: 0.85 },
+    { kind: "stadium",    lon: -117.1573, lat: 32.7076, name: "Petco Park", magnitude: 0.85 },
+    { kind: "stadium",    lon: -117.1196, lat: 32.7831, name: "Snapdragon Stadium", magnitude: 0.65 },
+    { kind: "university", lon: -117.2376, lat: 32.8801, name: "UC San Diego", magnitude: 0.95 },
+    { kind: "university", lon: -117.0726, lat: 32.7755, name: "San Diego State University", magnitude: 0.85 },
+    { kind: "university", lon: -117.1923, lat: 32.7714, name: "University of San Diego", magnitude: 0.65 },
+    { kind: "theme_park", lon: -117.1697, lat: 32.7641, name: "Balboa Park / San Diego Zoo", magnitude: 0.80 },
+    { kind: "theme_park", lon: -117.1268, lat: 33.0975, name: "LEGOLAND California (Carlsbad)", magnitude: 0.65 },
+    { kind: "theme_park", lon: -117.1731, lat: 32.7644, name: "SeaWorld San Diego", magnitude: 0.70 },
+    { kind: "beach",      lon: -117.2765, lat: 32.8328, name: "La Jolla Cove", magnitude: 0.55 },
+    // Inland Empire additions
+    { kind: "airport",    lon: -117.6010, lat: 34.0560, name: "ONT (Ontario International)", magnitude: 0.55 },
+    { kind: "airport",    lon: -116.5063, lat: 33.8297, name: "PSP (Palm Springs International)", magnitude: 0.40 },
+    { kind: "university", lon: -117.3281, lat: 33.9737, name: "UC Riverside", magnitude: 0.80 },
+    { kind: "university", lon: -117.3216, lat: 34.1820, name: "Cal State San Bernardino", magnitude: 0.65 },
   ];
   for (const a of augment) {
     const key = `${a.kind}|${a.name.toLowerCase()}`;

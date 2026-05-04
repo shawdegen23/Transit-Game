@@ -103,15 +103,26 @@ export function terrainPenalty(
 // of LA's coastal bbox)? Crude — uses an approximate coastline polygon.
 //
 // Coastline approximation: a series of (lat, lon-cutoff) pairs. Point is
-// in ocean if its lon is west of the cutoff at its latitude.
+// in ocean if its lon is west of the cutoff at its latitude. Updated for
+// the full SoCal bbox down to the Mexican border at San Diego.
 const COAST_PROFILE: [number, number][] = [
-  [33.65, -118.20], // South of LA, around San Pedro
+  [32.55, -117.13], // Tijuana / border
+  [32.70, -117.18], // Imperial Beach / Coronado
+  [32.85, -117.28], // Pacific Beach / La Jolla
+  [33.00, -117.30], // Del Mar
+  [33.20, -117.40], // Carlsbad / Oceanside
+  [33.40, -117.61], // San Clemente / Dana Point
+  [33.55, -117.85], // Newport Beach
+  [33.65, -118.00], // Huntington Beach
+  [33.65, -118.20], // San Pedro / LA Harbor area
   [33.75, -118.40], // Long Beach / Torrance
   [33.85, -118.42], // Manhattan Beach
   [33.95, -118.46], // Marina del Rey
   [34.05, -118.51], // Santa Monica
   [34.15, -118.58], // Pacific Palisades
   [34.20, -118.60], // Malibu fringe
+  [34.40, -119.00], // Ventura
+  [34.50, -119.30], // Oxnard fringe
 ];
 
 export function isInOcean(lon: number, lat: number): boolean {
