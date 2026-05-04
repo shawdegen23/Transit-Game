@@ -49,6 +49,14 @@ import {
   type SlotId,
 } from "../sim/save";
 
+// Render-skip signatures. Each panel only rebuilds its DOM when these
+// change. Without this, every monthly tick destroys all the buttons in
+// the inspector / pending panel / funding panel and any in-flight click
+// is lost.
+let lastInspectorSig = "";
+let lastPendingSig = "";
+let lastFundingSig = "";
+
 function fmtMoneyM(millions: number): string {
   const sign = millions < 0 ? "-" : "";
   const abs = Math.abs(millions);
@@ -201,13 +209,21 @@ export function initHud(): void {
       b.classList.toggle("active", b.dataset.mode === s.selectedMode);
     });
 
-    // Inspector
-    const list = el<HTMLDivElement>("route-list");
-    if (s.routes.length === 0) {
-      list.innerHTML = '<div class="empty">No routes yet.<br/>Pick a mode and click stations on the map.</div>';
-    } else {
-      list.innerHTML = "";
-      s.routes.forEach((r) => renderRouteRow(list, r));
+    // Inspector — re-render only when the route list actually changed.
+    // Signature includes the bits that affect the rendered HTML (status,
+    // build progress, frequency, dailyRiders, transferCount).
+    const inspectorSig = s.routes
+      .map((r) => `${r.id}|${r.status}|${r.monthsBuilt}/${r.buildMonths}|${r.frequency ?? "standard"}|${r.dailyRiders}|${r.transferCount}|${r.lengthMi.toFixed(2)}`)
+      .join(";");
+    if (inspectorSig !== lastInspectorSig) {
+      lastInspectorSig = inspectorSig;
+      const list = el<HTMLDivElement>("route-list");
+      if (s.routes.length === 0) {
+        list.innerHTML = '<div class="empty">No routes yet.<br/>Pick a mode and click stations on the map.</div>';
+      } else {
+        list.innerHTML = "";
+        s.routes.forEach((r) => renderRouteRow(list, r));
+      }
     }
 
     const cc = constructionCount();
@@ -263,9 +279,18 @@ export function initHud(): void {
 function renderPendingPanel(s: ReturnType<typeof getState>): void {
   const root = el<HTMLDivElement>("pending-root");
   if (!s.pending || s.pending.stations.length === 0) {
-    root.innerHTML = "";
+    if (lastPendingSig !== "") {
+      root.innerHTML = "";
+      lastPendingSig = "";
+    }
     return;
   }
+  // Signature: stations + opts + selectedMode + capital (for over-budget color).
+  // We round capital so tiny tick-driven changes don't churn the panel.
+  const sig = `${s.pending.stations.length}|${JSON.stringify(s.pending.stations)}|${s.pending.opts.designBuild}|${s.pending.opts.shifts247}|${s.selectedMode}|${Math.round(s.capitalBudgetM)}`;
+  if (sig === lastPendingSig) return;
+  lastPendingSig = sig;
+
   const opts = s.pending.opts;
   const preview = previewRoute(s.pending.stations, s.selectedMode, opts);
   const canFinish = s.pending.stations.length >= 2;
@@ -342,6 +367,15 @@ function renderFundingPanel(s: ReturnType<typeof getState>): void {
   const tircpEligible = eligibleRoutes.filter(
     (r) => !s.events.inflight.find((e) => e.kind === "tircp_application" && e.routeId === r.id),
   );
+
+  // Signature for the funding panel. Includes button-affecting state
+  // (eligible counts, inflight count, bond count) and rounded values for
+  // the recurring-flow display so monthly ticks rebuild it once per month.
+  const sig =
+    `${cigEligible.length}|${tircpEligible.length}|${s.events.inflight.length}|` +
+    `${s.bonds.length}|${flows.fareM.toFixed(1)}|${flows.todM.toFixed(1)}|${flows.costM.toFixed(1)}|${flows.bondsM.toFixed(1)}`;
+  if (sig === lastFundingSig) return;
+  lastFundingSig = sig;
 
   actions.innerHTML = `
     <div class="action-row">
