@@ -11,7 +11,10 @@ import {
   previewRoute,
   buildSegment,
   commitSegment,
+  setRouteFrequency,
+  FREQUENCY_MULT,
 } from "../game/routes";
+import type { Frequency } from "../game/state";
 import { getState, setState, subscribe, type RouteSegment } from "../game/state";
 import { loadBaselineNetwork } from "../map/baselineNetwork";
 import {
@@ -240,9 +243,14 @@ export function initHud(): void {
       const ev = s.events.pending[0];
       if (ev.kind === "ballot_measure") renderBallotModal(modalRoot, ev, s.approvalPct);
       else if (ev.kind === "nimby") renderNIMBYModal(modalRoot, ev);
-      else modalRoot.innerHTML = "";
+      else { modalRoot.innerHTML = ""; modalRoot.dataset.modalSig = ""; }
     } else if (!userOwned) {
-      modalRoot.innerHTML = "";
+      // No state-driven modal should be showing — clear the slate.
+      if (modalRoot.dataset.modalSig || modalRoot.innerHTML !== "") {
+        modalRoot.innerHTML = "";
+        modalRoot.dataset.modalSig = "";
+        modalRoot.dataset.outcome = "";
+      }
     }
 
     // Toast (soft milestones)
@@ -422,16 +430,30 @@ function renderRouteRow(list: HTMLElement, r: RouteSegment): void {
   }
 
   const actionLabel = r.status === "construction" ? "Cancel" : "Shut down";
+
+  // Frequency pills only on operating routes.
+  const freq: Frequency = r.frequency ?? "standard";
+  const freqPills = r.status === "operating"
+    ? `<div class="freq-pills">
+         <button data-freq="low"      class="${freq === "low"      ? "active" : ""}" title="Every ${FREQUENCY_MULT.low.minutes} min">Low</button>
+         <button data-freq="standard" class="${freq === "standard" ? "active" : ""}" title="Every ${FREQUENCY_MULT.standard.minutes} min">Std</button>
+         <button data-freq="high"     class="${freq === "high"     ? "active" : ""}" title="Every ${FREQUENCY_MULT.high.minutes} min">High</button>
+       </div>`
+    : "";
+
   row.innerHTML = `
     <span class="swatch" style="background:${colorCss}"></span>
     <div class="meta">
       <div class="name">${m.shortLabel} · Line ${r.id} ${pill}</div>
       <div class="sub">${sub}</div>
+      ${freqPills}
     </div>
     <div class="actions"><button data-action="${r.status}" data-id="${r.id}">${actionLabel}</button></div>
   `;
-  const btn = row.querySelector("button")!;
-  btn.addEventListener("click", () => {
+
+  // Action button (cancel/shutdown).
+  const actionBtn = row.querySelector<HTMLButtonElement>("[data-action]")!;
+  actionBtn.addEventListener("click", () => {
     if (r.status === "construction") {
       if (confirm(`Cancel ${m.shortLabel} Line ${r.id}? Refund 70% of capital spent.`)) {
         cancelConstruction(r.id);
@@ -442,10 +464,28 @@ function renderRouteRow(list: HTMLElement, r: RouteSegment): void {
       }
     }
   });
+
+  // Frequency buttons.
+  row.querySelectorAll<HTMLButtonElement>("[data-freq]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const f = btn.dataset.freq as Frequency;
+      setRouteFrequency(r.id, f);
+    });
+  });
+
   list.appendChild(row);
 }
 
 function renderBallotModal(root: HTMLElement, ev: BallotMeasure, currentApproval: number): void {
+  // Re-render guard: if this exact event is already showing, leave the
+  // existing DOM (and its event listeners) in place. Without this guard,
+  // every monthly tick destroys the buttons mid-click.
+  const sig = `ballot:${ev.id}`;
+  if (root.dataset.modalSig === sig) return;
+  root.dataset.modalSig = sig;
+  // Pause the clock so the player can read without time pressure.
+  setSpeed(0);
+
   const passLikely = currentApproval >= ev.thresholdPct ? "Likely to pass" : "Risky — current approval is below threshold";
   const passColor = currentApproval >= ev.thresholdPct ? "var(--good)" : "var(--bad)";
   root.innerHTML = `
@@ -470,6 +510,11 @@ function renderBallotModal(root: HTMLElement, ev: BallotMeasure, currentApproval
 }
 
 function renderNIMBYModal(root: HTMLElement, ev: NIMBYEvent): void {
+  const sig = `nimby:${ev.id}`;
+  if (root.dataset.modalSig === sig) return;
+  root.dataset.modalSig = sig;
+  setSpeed(0);
+
   const route = getState().routes.find((r) => r.id === ev.routeId);
   const routeLabel = route ? `Line ${route.id} (${route.mode.toUpperCase()})` : `Route ${ev.routeId}`;
   root.innerHTML = `

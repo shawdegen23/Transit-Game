@@ -5,6 +5,7 @@ import { defaultEventState, type EventState, type Bond } from "../sim/events";
 import { defaultGoalState, type GoalState } from "../sim/goal";
 
 export type RouteStatus = "construction" | "operating";
+export type Frequency = "low" | "standard" | "high";
 
 export interface ConstructionOpts {
   designBuild: boolean;  // -15% time, +10% cost
@@ -34,6 +35,8 @@ export interface RouteSegment {
   terrainShare: number;
   // Construction options chosen at commit time.
   opts: ConstructionOpts;
+  // Service frequency (player-adjustable after the route opens).
+  frequency: Frequency;
 }
 
 export interface PendingRoute {

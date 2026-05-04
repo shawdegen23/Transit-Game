@@ -7,7 +7,7 @@ California maps — starting with Los Angeles.
 
 See [DESIGN.md](./DESIGN.md) for the full vision, scope, and roadmap.
 
-## Status: v1.2 (the network is alive)
+## Status: v1.3 (run service like a real planner)
 
 What's playable today:
 - Real isometric map of Los Angeles (MapLibre + deck.gl, dark basemap)
@@ -92,6 +92,10 @@ What's playable today:
   forth along its polyline. Train count scales with line length, dot size
   scales with mode. Animation speed follows the game clock — paused
   freezes them, 16× zips them across the map.
+- **Service frequency**: per-route Low / Std / High pills in the inspector.
+  High frequency = more riders + more trains visible + more ops cost. Low
+  = the opposite. Scale-down underused lines to cut ops; pump up corridors
+  with real demand.
 
 ## Run it
 
@@ -164,10 +168,9 @@ src/
   data/la-bbox.ts          # LA viewport constants
 ```
 
-## What's next (v1.3)
+## What's next (v1.4)
 
-- Per-route service frequency / peak vs off-peak controls (also drives
-  train density on the map)
 - Stats / charts panel and history view
 - First-time tutorial flow
+- Time-of-day modeling (peak vs off-peak)
 - Eventually: San Diego / Inland Empire bbox, then Bay Area

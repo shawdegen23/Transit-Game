@@ -3,7 +3,7 @@
 import { onMonth } from "../game/clock";
 import { getMode } from "../game/modes";
 import { getState, setState } from "../game/state";
-import { recomputeTransferStats } from "../game/routes";
+import { recomputeTransferStats, FREQUENCY_MULT } from "../game/routes";
 import { bondMonthlyDebtM, fareElasticity } from "./events";
 import { accessPopAt } from "./ridership";
 
@@ -20,9 +20,10 @@ const TOD_DENSITY_FACTOR = 0.0000015; // multiplied by accessPop
 
 // Fare comes from game state now (player-adjustable). See sim/events.ts.
 
-function monthlyOperatingCostM(modeId: string, lengthMi: number): number {
+function monthlyOperatingCostM(modeId: string, lengthMi: number, freqMult: number): number {
   const m = getMode(modeId as Parameters<typeof getMode>[0]);
-  const revenueMilesPerMonth = lengthMi * 2 * 30;
+  // freqMult scales how many vehicle-miles you actually run per month.
+  const revenueMilesPerMonth = lengthMi * 2 * 30 * freqMult;
   return (revenueMilesPerMonth * m.operatingCostPerMile) / 1_000_000;
 }
 
@@ -87,8 +88,10 @@ function settleOperating(): OperatingFlows {
   const elast = fareElasticity(s.fareUSD);
   for (const r of s.routes) {
     if (r.status !== "operating") continue;
+    const freq = r.frequency ?? "standard";
+    const freqOpsMult = FREQUENCY_MULT[freq].opsCost;
     fareM += monthlyFareRevenueM(r.dailyRiders, s.fareUSD, elast);
-    costM += monthlyOperatingCostM(r.mode, r.lengthMi);
+    costM += monthlyOperatingCostM(r.mode, r.lengthMi, freqOpsMult);
   }
   return {
     fareM,

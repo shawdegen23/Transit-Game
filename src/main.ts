@@ -53,6 +53,6 @@ import { getDate, setSpeed } from "./game/clock";
 
 // eslint-disable-next-line no-console
 console.log(
-  "[CA Transit Builder] v1.2 — animated trains traversing operating routes " +
-    "in both directions, animation speed scales with game clock.",
+  "[CA Transit Builder] v1.3 — per-route service frequency (Low/Std/High) " +
+    "drives ridership, ops cost, and visible train density.",
 );

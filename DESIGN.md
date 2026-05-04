@@ -193,11 +193,21 @@ The game should reward the kinds of decisions real planners face:
   scales with game clock — paused at 0×, sleepy at 1×, zipping at 16×.
   Heavy modes (HRT) get bigger train dots than buses.
 
-### v1.3 / Future
+### v1.3 (current)
+- **Per-route service frequency**: each operating route has Low / Std /
+  High pills in the inspector. Multipliers:
+  - Low (every ~20 min): 0.5× ops cost, 0.7× ridership, 0.5× trains
+  - Std (every ~10 min): baseline
+  - High (every ~5 min): 1.6× ops cost, 1.20× ridership, 1.5× trains
+- Visible train density on the map scales with frequency, so you can see
+  at a glance which lines are running hot. Slim down underused lines to
+  cut ops costs; pump up high-demand corridors.
+
+### v1.4 / Future
 - Push bbox south to San Diego, east to Inland Empire (Palm Springs).
-- Service frequency / peak vs off-peak controls (also affects train density).
 - Stats / charts panel + history view.
 - Tutorial / first-time onboarding.
+- Time-of-day modeling (peak vs off-peak frequency).
 - Bay Area as second region.
 - Statewide rail (HSR, Amtrak California).
 
@@ -348,7 +358,8 @@ few iterations.
 | v1.0    | SoCal expansion (+OC +Ventura), landmarks system (LAX, Disney, UCLA, etc.) |
 | v1.1    | Save/load slots, autosave, resume-on-reload, Ctrl+S, menu modal   |
 | v1.2    | Animated trains running on operating routes                       |
-| v1.3+   | Service frequency, charts, tutorial                               |
+| v1.3    | Per-route service frequency (Low/Std/High)                        |
+| v1.4+   | Charts, tutorial, time-of-day, peak/off-peak                      |
 | v2.0+   | San Diego/IE bbox, Bay Area, statewide                            |
 | v0.5    | Multi-agency, voter approval, simple political events             |
 | v0.6    | Save/load, scenarios                                              |

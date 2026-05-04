@@ -33,6 +33,13 @@ function pathDist(a: [number, number], b: [number, number]): number {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
+// Train count multiplier per frequency tier (matches FREQUENCY_MULT.trains).
+const FREQ_TRAIN_MULT: Record<string, number> = {
+  low: 0.5,
+  standard: 1.0,
+  high: 1.5,
+};
+
 function ensureCache(r: RouteSegment): PathCache | null {
   if (r.path.length < 2) return null;
   const existing = cache.get(r);
@@ -42,9 +49,10 @@ function ensureCache(r: RouteSegment): PathCache | null {
     cum.push(cum[i - 1] + pathDist(r.path[i - 1], r.path[i]));
   }
   const total = cum[cum.length - 1];
-  // Convert lengthMi → train count, with a sane floor + ceiling.
   const desired = Math.round(r.lengthMi / TARGET_SPACING_MI);
-  const trainCount = Math.max(2, Math.min(12, desired));
+  const baseTrainCount = Math.max(2, Math.min(12, desired));
+  const freqMult = FREQ_TRAIN_MULT[r.frequency ?? "standard"] ?? 1.0;
+  const trainCount = Math.max(1, Math.round(baseTrainCount * freqMult));
   const c: PathCache = { cum, total, trainCount };
   cache.set(r, c);
   return c;

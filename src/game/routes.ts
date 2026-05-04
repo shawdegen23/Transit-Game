@@ -5,6 +5,7 @@ import {
   type RouteSegment,
   type ConstructionOpts,
   defaultOpts,
+  type Frequency,
 } from "./state";
 import { nearestNode, shortestPath } from "../map/streetGraph";
 import { getDate } from "./clock";
@@ -142,6 +143,7 @@ export function buildSegment(
     freewayShare,
     terrainShare,
     opts: { ...opts },
+    frequency: "standard",
   };
 }
 
@@ -175,6 +177,23 @@ function transferBonus(transfers: number): number {
   return bonus;
 }
 
+// Frequency multipliers. Apply to per-route ridership AND per-route ops cost.
+// Train animation density also reads this.
+export const FREQUENCY_MULT: Record<Frequency, { ridership: number; opsCost: number; trains: number; label: string; minutes: number }> = {
+  low:      { ridership: 0.70, opsCost: 0.50, trains: 0.5, label: "Low",      minutes: 20 },
+  standard: { ridership: 1.00, opsCost: 1.00, trains: 1.0, label: "Standard", minutes: 10 },
+  high:     { ridership: 1.20, opsCost: 1.60, trains: 1.5, label: "High",     minutes: 5  },
+};
+
+export function setRouteFrequency(routeId: number, frequency: Frequency): void {
+  const s = getState();
+  const updated = s.routes.map((r) =>
+    r.id === routeId ? { ...r, frequency } : r,
+  );
+  setState({ routes: updated });
+  recomputeTransferStats();
+}
+
 export function recomputeTransferStats(): void {
   const s = getState();
   const operating = s.routes.filter((r) => r.status === "operating");
@@ -203,9 +222,12 @@ export function recomputeTransferStats(): void {
 
   const updated = s.routes.map((r) => {
     const mode = getMode(r.mode);
+    const freq = r.frequency ?? "standard";
+    const freqMult = FREQUENCY_MULT[freq].ridership;
     const base =
       estimateDensityRidership(mode, r.stations, r.lengthMi) *
-      landmarkRidershipMultiplier(r.stations);
+      landmarkRidershipMultiplier(r.stations) *
+      freqMult;
     const t = transfersById.get(r.id) ?? 0;
     const dailyRiders = Math.round(base * transferBonus(t));
     return { ...r, dailyRiders, transferCount: t };
