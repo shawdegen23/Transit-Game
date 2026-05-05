@@ -123,6 +123,18 @@ const COAST_PROFILE: [number, number][] = [
   [34.20, -118.60], // Malibu fringe
   [34.40, -119.00], // Ventura
   [34.50, -119.30], // Oxnard fringe
+  [34.65, -119.40], // Mussel Shoals / Carpinteria approach
+  [34.42, -119.70], // Santa Barbara
+  [34.60, -120.10], // Goleta / Gaviota Pass
+  [34.70, -120.50], // Pt. Conception turn
+  [34.85, -120.65], // Lompoc / Vandenberg
+  [35.15, -120.85], // Pismo Beach / Avila
+  [35.28, -120.85], // Morro Bay area
+  [35.50, -121.10], // San Simeon
+  [35.85, -121.40], // Big Sur south
+  [36.20, -121.80], // Big Sur central
+  [36.55, -121.95], // Carmel / Pacific Grove
+  [36.75, -121.85], // Monterey Bay
 ];
 
 export function isInOcean(lon: number, lat: number): boolean {

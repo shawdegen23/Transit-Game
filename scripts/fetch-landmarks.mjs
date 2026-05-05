@@ -31,7 +31,7 @@ import { execSync } from "node:child_process";
 import { readFileSync, rmSync } from "node:fs";
 
 const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
-const BBOX = { west: -119.4, south: 32.55, east: -116.0, north: 34.7 };
+const BBOX = { west: -121.5, south: 32.55, east: -116.0, north: 37.0 };
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = join(__dirname, "..", "public");
@@ -123,34 +123,62 @@ function effectsFor(kind, magnitude) {
 async function main() {
   await mkdir(OUT_DIR, { recursive: true });
 
-  const q = `
-    [out:json][timeout:90];
-    (
-      node[aeroway=aerodrome](${BBOX.south},${BBOX.west},${BBOX.north},${BBOX.east});
-      way[aeroway=aerodrome](${BBOX.south},${BBOX.west},${BBOX.north},${BBOX.east});
-      node[amenity=university](${BBOX.south},${BBOX.west},${BBOX.north},${BBOX.east});
-      way[amenity=university](${BBOX.south},${BBOX.west},${BBOX.north},${BBOX.east});
-      node[amenity=college](${BBOX.south},${BBOX.west},${BBOX.north},${BBOX.east});
-      node[amenity=hospital](${BBOX.south},${BBOX.west},${BBOX.north},${BBOX.east});
-      way[amenity=hospital](${BBOX.south},${BBOX.west},${BBOX.north},${BBOX.east});
-      node[leisure=stadium](${BBOX.south},${BBOX.west},${BBOX.north},${BBOX.east});
-      way[leisure=stadium](${BBOX.south},${BBOX.west},${BBOX.north},${BBOX.east});
-      node[tourism=theme_park](${BBOX.south},${BBOX.west},${BBOX.north},${BBOX.east});
-      way[tourism=theme_park](${BBOX.south},${BBOX.west},${BBOX.north},${BBOX.east});
-      node[shop=mall](${BBOX.south},${BBOX.west},${BBOX.north},${BBOX.east});
-      way[shop=mall](${BBOX.south},${BBOX.west},${BBOX.north},${BBOX.east});
-    );
-    out center;
-  `.trim();
-
-  const tmp = join(tmpdir(), `la-landmarks-${Date.now()}.json`);
-  log("querying Overpass…");
-  execSync(
-    `curl -sS --max-time 120 -X POST "${OVERPASS_URL}" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode "data=${q.replace(/"/g, '\\"')}" -o "${tmp}"`,
-    { stdio: "inherit" },
-  );
-  const raw = JSON.parse(readFileSync(tmp, "utf-8"));
-  log(`  raw elements: ${raw.elements?.length ?? 0}`);
+  // Chunk the bbox horizontally + vertically to avoid Overpass timing out
+  // on huge multi-tag queries over the full SoCal+CV+Coast area. Each
+  // sub-query is one tag type within one quadrant.
+  const tagQueries = [
+    "node[aeroway=aerodrome]",
+    "way[aeroway=aerodrome]",
+    "node[amenity=university]",
+    "way[amenity=university]",
+    "node[amenity=college]",
+    "node[amenity=hospital]",
+    "way[amenity=hospital]",
+    "node[leisure=stadium]",
+    "way[leisure=stadium]",
+    "node[tourism=theme_park]",
+    "way[tourism=theme_park]",
+    "node[shop=mall]",
+    "way[shop=mall]",
+  ];
+  const halfLat = (BBOX.south + BBOX.north) / 2;
+  const halfLon = (BBOX.west + BBOX.east) / 2;
+  const quads = [
+    { s: BBOX.south, w: BBOX.west, n: halfLat, e: halfLon },
+    { s: BBOX.south, w: halfLon, n: halfLat, e: BBOX.east },
+    { s: halfLat, w: BBOX.west, n: BBOX.north, e: halfLon },
+    { s: halfLat, w: halfLon, n: BBOX.north, e: BBOX.east },
+  ];
+  const allElements = [];
+  for (let qi = 0; qi < quads.length; qi++) {
+    const q = quads[qi];
+    const lines = tagQueries
+      .map((tq) => `${tq}(${q.s},${q.w},${q.n},${q.e});`)
+      .join("\n      ");
+    const ql = `[out:json][timeout:60];(${lines});out center;`.trim();
+    const tmp = join(tmpdir(), `la-landmarks-${qi}-${Date.now()}.json`);
+    log(`querying Overpass quadrant ${qi + 1}/4…`);
+    let ok = false;
+    for (let attempt = 1; attempt <= 3 && !ok; attempt++) {
+      try {
+        execSync(
+          `curl -sS --max-time 90 -X POST "${OVERPASS_URL}" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode "data=${ql.replace(/"/g, '\\"')}" -o "${tmp}"`,
+          { stdio: ["ignore", "ignore", "pipe"] },
+        );
+        const parsed = JSON.parse(readFileSync(tmp, "utf-8"));
+        if (!parsed.elements) throw new Error("missing elements");
+        allElements.push(...parsed.elements);
+        log(`  q${qi + 1}: ${parsed.elements.length} elements`);
+        ok = true;
+      } catch (err) {
+        log(`  q${qi + 1} attempt ${attempt} failed: ${err.message ?? err}`);
+        if (attempt < 3) execSync("sleep 5");
+      }
+    }
+    if (!ok) throw new Error(`landmarks q${qi + 1} failed`);
+  }
+  const raw = { elements: allElements };
+  log(`  total raw elements: ${raw.elements.length}`);
 
   const round5 = (n) => Math.round(n * 1e5) / 1e5;
   const landmarks = [];
@@ -238,6 +266,20 @@ async function main() {
     { kind: "airport",    lon: -116.5063, lat: 33.8297, name: "PSP (Palm Springs International)", magnitude: 0.40 },
     { kind: "university", lon: -117.3281, lat: 33.9737, name: "UC Riverside", magnitude: 0.80 },
     { kind: "university", lon: -117.3216, lat: 34.1820, name: "Cal State San Bernardino", magnitude: 0.65 },
+    // Central Coast / Santa Barbara
+    { kind: "airport",    lon: -119.8403, lat: 34.4262, name: "SBA (Santa Barbara Municipal)", magnitude: 0.40 },
+    { kind: "university", lon: -119.8489, lat: 34.4140, name: "UC Santa Barbara", magnitude: 0.85 },
+    { kind: "university", lon: -120.6594, lat: 35.3001, name: "Cal Poly San Luis Obispo", magnitude: 0.80 },
+    { kind: "beach",      lon: -119.6885, lat: 34.4173, name: "Santa Barbara waterfront", magnitude: 0.55 },
+    // Central Valley
+    { kind: "airport",    lon: -119.0568, lat: 35.4334, name: "BFL (Bakersfield Meadows Field)", magnitude: 0.35 },
+    { kind: "airport",    lon: -119.7181, lat: 36.7762, name: "FAT (Fresno Yosemite International)", magnitude: 0.45 },
+    { kind: "university", lon: -119.7460, lat: 36.8136, name: "Fresno State", magnitude: 0.75 },
+    { kind: "university", lon: -119.0421, lat: 35.3540, name: "Cal State Bakersfield", magnitude: 0.65 },
+    // Monterey / Salinas
+    { kind: "airport",    lon: -121.8489, lat: 36.5870, name: "MRY (Monterey Regional)", magnitude: 0.30 },
+    { kind: "university", lon: -121.7965, lat: 36.6553, name: "CSU Monterey Bay", magnitude: 0.55 },
+    { kind: "beach",      lon: -121.9018, lat: 36.6177, name: "Carmel Beach", magnitude: 0.50 },
   ];
   for (const a of augment) {
     const key = `${a.kind}|${a.name.toLowerCase()}`;
@@ -263,8 +305,6 @@ async function main() {
     landmarks,
   }));
   log(`wrote ${OUT_FILE}`);
-
-  rmSync(tmp, { force: true });
 }
 
 main().catch((e) => {

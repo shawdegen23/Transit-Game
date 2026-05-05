@@ -53,6 +53,6 @@ import { getDate, setSpeed } from "./game/clock";
 
 // eslint-disable-next-line no-console
 console.log(
-  "[CA Transit Builder] v1.4 — full SoCal expansion: now covers San Diego, " +
-    "Inland Empire, and Palm Springs in addition to LA / OC / Ventura.",
+  "[CA Transit Builder] v1.5 — Central Coast + south Central Valley added: " +
+    "Santa Barbara, San Luis Obispo, Monterey, Bakersfield, Fresno.",
 );

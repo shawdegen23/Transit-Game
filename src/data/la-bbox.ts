@@ -1,19 +1,21 @@
-// v1.4 starting viewport: centered for full SoCal so the player can see
-// Ventura → Palm Springs east, San Diego → north LA fringe vertically.
+// v1.5 starting viewport: SoCal + Central Coast + south Central Valley
+// in one frame. Centered on a point that puts LA, San Diego, Santa
+// Barbara, Bakersfield, and Fresno all visible at this zoom.
 export const LA_INITIAL_VIEW = {
-  longitude: -117.80,
-  latitude: 33.65,
-  zoom: 8.4,
-  pitch: 40,
-  bearing: -10,
-  minZoom: 7,
+  longitude: -118.50,
+  latitude: 34.50,
+  zoom: 7.4,
+  pitch: 35,
+  bearing: -8,
+  minZoom: 6,
   maxZoom: 18,
 } as const;
 
-// Full SoCal bbox (matches the data fetch scripts).
+// Bbox covers Monterey/Salinas west, Palm Springs east, San Diego south,
+// Fresno north (matches the data fetch scripts).
 export const LA_BBOX = {
-  west: -119.4,
+  west: -121.5,
   south: 32.55,
   east: -116.0,
-  north: 34.7,
+  north: 37.0,
 } as const;

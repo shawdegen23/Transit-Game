@@ -7,7 +7,7 @@ California maps — starting with Los Angeles.
 
 See [DESIGN.md](./DESIGN.md) for the full vision, scope, and roadmap.
 
-## Status: v1.4 (full Southern California)
+## Status: v1.5 (SoCal + Central Coast + south Central Valley)
 
 What's playable today:
 - Real isometric map of Los Angeles (MapLibre + deck.gl, dark basemap)
@@ -100,6 +100,10 @@ What's playable today:
   San Fernando Valley to Tijuana border. San Diego (with UCSD, Petco
   Park, Balboa Park, SeaWorld, LEGOLAND), Inland Empire (Riverside,
   San Bernardino, Ontario), Coachella Valley — all in one playable map.
+- **Central Coast** (v1.5): Santa Barbara, UCSB, Lompoc, SLO / Cal Poly,
+  Pismo, Morro Bay, Monterey, Carmel, CSU Monterey Bay.
+- **South Central Valley** (v1.5): Bakersfield (CSUB, BFL airport),
+  Fresno (Fresno State, FAT airport), Visalia, Tulare, Hanford.
 
 ## Run it
 
@@ -172,9 +176,9 @@ src/
   data/la-bbox.ts          # LA viewport constants
 ```
 
-## What's next (v1.5+)
+## What's next (v1.6+)
 
 - Stats / charts panel and history view
 - First-time tutorial flow
 - Time-of-day modeling (peak vs off-peak)
-- Eventually: Bay Area as second region, then statewide
+- Eventually: Bay Area + Sacramento, then statewide rail (HSR)

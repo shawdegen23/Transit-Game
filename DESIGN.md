@@ -220,11 +220,26 @@ The game should reward the kinds of decisions real planners face:
   along the SD coast bounce too.
 - Default viewport zoomed out to fit the new playable area.
 
-### v1.5 / Future
+### v1.5 (current)
+- **Central Coast + south Central Valley** added: Santa Barbara, Goleta,
+  Lompoc, San Luis Obispo, Pismo, Morro Bay, Monterey, Salinas,
+  Bakersfield, Fresno.
+- New bbox: −121.5W to −116.0E, 32.55S to 37.0N (~3.4× the v1.4 area).
+- Streets: 91,563 junctions / 148,660 edges (35 MB raw / 9 MB gzipped).
+- Corridors: 20,411 rail + 27,651 freeway features (4.1 MB).
+- Places: 2,704 population centers.
+- Landmarks: 1,302 (added UCSB, Cal Poly SLO, Fresno State, CSUB,
+  CSU Monterey Bay, SBA / FAT / BFL / MRY airports, Carmel Beach, etc.).
+- Coastline check extended up the entire Central Coast (Big Sur,
+  Carmel, Monterey).
+- Landmarks fetch now chunked into 4 quadrants — single big query was
+  timing out on Overpass.
+
+### v1.6 / Future
 - Stats / charts panel + history view.
 - Tutorial / first-time onboarding.
 - Time-of-day modeling (peak vs off-peak frequency).
-- Bay Area as second region.
+- Bay Area + Sacramento (full statewide).
 - Statewide rail (HSR, Amtrak California).
 
 ### v0.3
@@ -376,8 +391,9 @@ few iterations.
 | v1.2    | Animated trains running on operating routes                       |
 | v1.3    | Per-route service frequency (Low/Std/High)                        |
 | v1.4    | Full SoCal: San Diego, Inland Empire, Palm Springs                |
-| v1.5+   | Charts, tutorial, time-of-day                                     |
-| v2.0+   | Bay Area, statewide rail                                          |
+| v1.5    | Central Coast + south Central Valley                              |
+| v1.6+   | Charts, tutorial, time-of-day                                     |
+| v2.0+   | Bay Area, Sacramento, statewide rail (HSR)                        |
 | v0.5    | Multi-agency, voter approval, simple political events             |
 | v0.6    | Save/load, scenarios                                              |
 | v1.0    | Bay Area + statewide expansion, HSR, polished UI                  |

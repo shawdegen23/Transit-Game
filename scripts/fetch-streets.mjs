@@ -31,13 +31,13 @@ import { readFileSync, rmSync, existsSync } from "node:fs";
 
 const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
 
-// Full SoCal bbox: Ventura/Oxnard west to Palm Springs east, San Diego
-// south to Mojave fringe / Lancaster north. ~3.4° × 2.15°.
-const BBOX = { west: -119.4, south: 32.55, east: -116.0, north: 34.7 };
+// Central Coast + SoCal + south Central Valley: Monterey west to Palm
+// Springs east, San Diego south to Fresno area north. ~5.5° × 4.45°.
+const BBOX = { west: -121.5, south: 32.55, east: -116.0, north: 37.0 };
 
-// 8×5 = 40 tiles keeps each Overpass query under ~30s.
-const TILES_X = 8;
-const TILES_Y = 5;
+// 11×7 = 77 tiles keeps each Overpass query under ~30s.
+const TILES_X = 11;
+const TILES_Y = 7;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = join(__dirname, "..", "public");
