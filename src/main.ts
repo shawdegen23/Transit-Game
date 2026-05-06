@@ -53,6 +53,6 @@ import { getDate, setSpeed } from "./game/clock";
 
 // eslint-disable-next-line no-console
 console.log(
-  "[CA Transit Builder] v1.5 — Central Coast + south Central Valley added: " +
-    "Santa Barbara, San Luis Obispo, Monterey, Bakersfield, Fresno.",
+  "[CA Transit Builder] v1.6 — Bay Area + Sacramento added. Full California " +
+    "south of Mendocino is now playable.",
 );

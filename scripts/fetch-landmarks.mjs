@@ -31,7 +31,7 @@ import { execSync } from "node:child_process";
 import { readFileSync, rmSync } from "node:fs";
 
 const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
-const BBOX = { west: -121.5, south: 32.55, east: -116.0, north: 37.0 };
+const BBOX = { west: -122.5, south: 32.55, east: -116.0, north: 38.8 };
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = join(__dirname, "..", "public");
@@ -150,32 +150,33 @@ async function main() {
     { s: halfLat, w: halfLon, n: BBOX.north, e: BBOX.east },
   ];
   const allElements = [];
+  // One small query per tag per quadrant. Slower in wall time but each
+  // individual query is tiny and Overpass handles them reliably.
   for (let qi = 0; qi < quads.length; qi++) {
     const q = quads[qi];
-    const lines = tagQueries
-      .map((tq) => `${tq}(${q.s},${q.w},${q.n},${q.e});`)
-      .join("\n      ");
-    const ql = `[out:json][timeout:60];(${lines});out center;`.trim();
-    const tmp = join(tmpdir(), `la-landmarks-${qi}-${Date.now()}.json`);
-    log(`querying Overpass quadrant ${qi + 1}/4…`);
-    let ok = false;
-    for (let attempt = 1; attempt <= 3 && !ok; attempt++) {
-      try {
-        execSync(
-          `curl -sS --max-time 90 -X POST "${OVERPASS_URL}" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode "data=${ql.replace(/"/g, '\\"')}" -o "${tmp}"`,
-          { stdio: ["ignore", "ignore", "pipe"] },
-        );
-        const parsed = JSON.parse(readFileSync(tmp, "utf-8"));
-        if (!parsed.elements) throw new Error("missing elements");
-        allElements.push(...parsed.elements);
-        log(`  q${qi + 1}: ${parsed.elements.length} elements`);
-        ok = true;
-      } catch (err) {
-        log(`  q${qi + 1} attempt ${attempt} failed: ${err.message ?? err}`);
-        if (attempt < 3) execSync("sleep 5");
+    let qTotal = 0;
+    for (const tq of tagQueries) {
+      const ql = `[out:json][timeout:30];(${tq}(${q.s},${q.w},${q.n},${q.e}););out center;`;
+      const tmp = join(tmpdir(), `la-landmarks-${qi}-${Date.now()}.json`);
+      let ok = false;
+      for (let attempt = 1; attempt <= 3 && !ok; attempt++) {
+        try {
+          execSync(
+            `curl -sS --max-time 45 -X POST "${OVERPASS_URL}" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode "data=${ql.replace(/"/g, '\\"')}" -o "${tmp}"`,
+            { stdio: ["ignore", "ignore", "pipe"] },
+          );
+          const parsed = JSON.parse(readFileSync(tmp, "utf-8"));
+          if (!parsed.elements) throw new Error("missing elements");
+          allElements.push(...parsed.elements);
+          qTotal += parsed.elements.length;
+          ok = true;
+        } catch (err) {
+          if (attempt < 3) execSync("sleep 3");
+        }
       }
+      if (!ok) log(`  q${qi + 1} ${tq} failed (skipping)`);
     }
-    if (!ok) throw new Error(`landmarks q${qi + 1} failed`);
+    log(`  q${qi + 1}/4 done: ${qTotal} elements`);
   }
   const raw = { elements: allElements };
   log(`  total raw elements: ${raw.elements.length}`);
@@ -280,6 +281,28 @@ async function main() {
     { kind: "airport",    lon: -121.8489, lat: 36.5870, name: "MRY (Monterey Regional)", magnitude: 0.30 },
     { kind: "university", lon: -121.7965, lat: 36.6553, name: "CSU Monterey Bay", magnitude: 0.55 },
     { kind: "beach",      lon: -121.9018, lat: 36.6177, name: "Carmel Beach", magnitude: 0.50 },
+    // Bay Area
+    { kind: "airport",    lon: -122.3790, lat: 37.6213, name: "SFO (San Francisco International)", magnitude: 1.0 },
+    { kind: "airport",    lon: -122.2207, lat: 37.7126, name: "OAK (Oakland International)", magnitude: 0.65 },
+    { kind: "airport",    lon: -121.9290, lat: 37.3639, name: "SJC (San Jose Mineta)", magnitude: 0.70 },
+    { kind: "university", lon: -122.2585, lat: 37.8719, name: "UC Berkeley", magnitude: 0.95 },
+    { kind: "university", lon: -122.1697, lat: 37.4275, name: "Stanford University", magnitude: 0.95 },
+    { kind: "university", lon: -122.4582, lat: 37.7627, name: "UCSF (Parnassus)", magnitude: 0.85 },
+    { kind: "university", lon: -122.2727, lat: 37.7218, name: "San Francisco State University", magnitude: 0.65 },
+    { kind: "university", lon: -121.8859, lat: 37.3352, name: "San Jose State University", magnitude: 0.70 },
+    { kind: "stadium",    lon: -122.3893, lat: 37.7786, name: "Oracle Park (Giants)", magnitude: 0.85 },
+    { kind: "stadium",    lon: -121.9700, lat: 37.5022, name: "Levi's Stadium (49ers)", magnitude: 0.85 },
+    { kind: "stadium",    lon: -122.3475, lat: 37.7503, name: "Chase Center (Warriors)", magnitude: 0.80 },
+    { kind: "stadium",    lon: -122.2009, lat: 37.7517, name: "Oakland Coliseum / RingCentral Coliseum", magnitude: 0.55 },
+    { kind: "theme_park", lon: -122.0349, lat: 37.4036, name: "Great America (Santa Clara)", magnitude: 0.55 },
+    { kind: "beach",      lon: -122.4783, lat: 37.7694, name: "Ocean Beach (SF)", magnitude: 0.55 },
+    { kind: "beach",      lon: -122.4783, lat: 37.8328, name: "Baker Beach / Golden Gate", magnitude: 0.65 },
+    { kind: "beach",      lon: -122.0226, lat: 36.9626, name: "Santa Cruz Boardwalk", magnitude: 0.60 },
+    // Sacramento area
+    { kind: "airport",    lon: -121.5910, lat: 38.6951, name: "SMF (Sacramento International)", magnitude: 0.55 },
+    { kind: "university", lon: -121.4234, lat: 38.5556, name: "Sacramento State", magnitude: 0.60 },
+    { kind: "university", lon: -121.7405, lat: 38.5382, name: "UC Davis", magnitude: 0.80 },
+    { kind: "stadium",    lon: -121.4998, lat: 38.5803, name: "Golden 1 Center (Kings)", magnitude: 0.65 },
   ];
   for (const a of augment) {
     const key = `${a.kind}|${a.name.toLowerCase()}`;

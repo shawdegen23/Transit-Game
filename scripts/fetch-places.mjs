@@ -13,7 +13,7 @@ import { execSync } from "node:child_process";
 import { readFileSync, rmSync } from "node:fs";
 
 const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
-const BBOX = { west: -121.5, south: 32.55, east: -116.0, north: 37.0 };
+const BBOX = { west: -122.5, south: 32.55, east: -116.0, north: 38.8 };
 
 // Approximate fallback populations by place kind, used when OSM doesn't
 // have a `population` tag (suburbs/neighbourhoods often lack one).

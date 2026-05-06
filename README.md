@@ -7,7 +7,7 @@ California maps — starting with Los Angeles.
 
 See [DESIGN.md](./DESIGN.md) for the full vision, scope, and roadmap.
 
-## Status: v1.5 (SoCal + Central Coast + south Central Valley)
+## Status: v1.6 (Statewide California)
 
 What's playable today:
 - Real isometric map of Los Angeles (MapLibre + deck.gl, dark basemap)
@@ -104,6 +104,11 @@ What's playable today:
   Pismo, Morro Bay, Monterey, Carmel, CSU Monterey Bay.
 - **South Central Valley** (v1.5): Bakersfield (CSUB, BFL airport),
   Fresno (Fresno State, FAT airport), Visalia, Tulare, Hanford.
+- **Bay Area** (v1.6): San Francisco (SFO, UCSF, Oracle Park, Chase
+  Center, Ocean Beach, Golden Gate), Oakland (OAK, Coliseum, UC Berkeley),
+  San Jose (SJC, SJSU, Levi's Stadium, Great America), Stanford / Palo Alto.
+- **Sacramento area** (v1.6): SMF airport, Sac State, UC Davis, Golden 1
+  Center.
 
 ## Run it
 
@@ -176,9 +181,9 @@ src/
   data/la-bbox.ts          # LA viewport constants
 ```
 
-## What's next (v1.6+)
+## What's next (v1.7+)
 
 - Stats / charts panel and history view
 - First-time tutorial flow
 - Time-of-day modeling (peak vs off-peak)
-- Eventually: Bay Area + Sacramento, then statewide rail (HSR)
+- Statewide rail data: CA High Speed Rail, Amtrak California, Caltrain GTFS

@@ -20,7 +20,7 @@ import { execSync } from "node:child_process";
 import { readFileSync, rmSync } from "node:fs";
 
 const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
-const BBOX = { west: -121.5, south: 32.55, east: -116.0, north: 37.0 };
+const BBOX = { west: -122.5, south: 32.55, east: -116.0, north: 38.8 };
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = join(__dirname, "..", "public");

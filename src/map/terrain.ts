@@ -135,6 +135,18 @@ const COAST_PROFILE: [number, number][] = [
   [36.20, -121.80], // Big Sur central
   [36.55, -121.95], // Carmel / Pacific Grove
   [36.75, -121.85], // Monterey Bay
+  [37.00, -122.00], // Aptos / Capitola
+  [37.10, -122.30], // Pescadero
+  [37.30, -122.40], // Half Moon Bay
+  [37.50, -122.50], // Pacifica
+  [37.70, -122.50], // SF western coast (Sutro / Ocean Beach)
+  [37.78, -122.51], // Ocean Beach
+  [37.83, -122.50], // Cliff House / Lands End
+  [37.83, -122.48], // Golden Gate Bridge
+  // Inside the Bay (between SF and Oakland) is also water but the
+  // simple west-of-cutoff check doesn't model bays. We accept that
+  // limitation — players just can't build subway tubes through SF Bay,
+  // which is fine because real-world transit doesn't either.
 ];
 
 export function isInOcean(lon: number, lat: number): boolean {

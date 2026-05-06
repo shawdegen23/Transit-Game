@@ -31,13 +31,14 @@ import { readFileSync, rmSync, existsSync } from "node:fs";
 
 const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
 
-// Central Coast + SoCal + south Central Valley: Monterey west to Palm
-// Springs east, San Diego south to Fresno area north. ~5.5° × 4.45°.
-const BBOX = { west: -121.5, south: 32.55, east: -116.0, north: 37.0 };
+// Full California (south of Mendocino): SF / Bay Area west to Palm Springs
+// east, San Diego south to Sacramento north. ~6.5° × 6.25°.
+const BBOX = { west: -122.5, south: 32.55, east: -116.0, north: 38.8 };
 
-// 11×7 = 77 tiles keeps each Overpass query under ~30s.
-const TILES_X = 11;
-const TILES_Y = 7;
+// 13×9 = 117 tiles. We drop tertiary roads at this scale (see query
+// below) so the file size stays under ~50 MB.
+const TILES_X = 13;
+const TILES_Y = 9;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = join(__dirname, "..", "public");
@@ -79,7 +80,7 @@ function fetchTile(ix, iy) {
   const q = `
     [out:json][timeout:90];
     (
-      way[highway~"^(motorway|trunk|primary|secondary|tertiary|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link)$"]
+      way[highway~"^(motorway|trunk|primary|secondary|motorway_link|trunk_link|primary_link|secondary_link)$"]
         (${t.south},${t.west},${t.north},${t.east});
     );
     out geom;

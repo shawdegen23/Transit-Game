@@ -235,12 +235,28 @@ The game should reward the kinds of decisions real planners face:
 - Landmarks fetch now chunked into 4 quadrants — single big query was
   timing out on Overpass.
 
-### v1.6 / Future
+### v1.6 (current)
+- **Bay Area + Sacramento** added: SF, Oakland, San Jose, Berkeley,
+  Stanford/Palo Alto, Sacramento, Davis. Full California south of
+  Mendocino is now playable — roughly 90% of the state's population.
+- New bbox: −122.5W (SF coast) to −116.0E, 32.55S to 38.8N. ~6.5° × 6.25°.
+- Streets: 117 tiles, 35 MB raw / 9 MB gzipped. **Tertiary roads dropped**
+  to keep file size manageable at this scale (transit doesn't need them).
+- Corridors: 7.1 MB (33,815 rail + 40,870 freeway features).
+- Places: 4,724 population centers across the state.
+- Landmarks: 1,322 (added SFO, OAK, SJC, SMF, UC Berkeley, Stanford,
+  UCSF, UCD, San Jose State, Sac State, Oracle Park, Levi's Stadium,
+  Chase Center, Oakland Coliseum, Great America, etc.).
+- Coastline check extended up the SF Peninsula past Golden Gate.
+- Landmarks fetch now per-tag-per-quadrant (52 mini-queries) for
+  reliability — single big queries were timing out on Overpass.
+
+### v1.7 / Future
 - Stats / charts panel + history view.
 - Tutorial / first-time onboarding.
-- Time-of-day modeling (peak vs off-peak frequency).
-- Bay Area + Sacramento (full statewide).
-- Statewide rail (HSR, Amtrak California).
+- Time-of-day modeling (peak vs off-peak).
+- Statewide rail (CA HSR, Amtrak California, Caltrain GTFS).
+- Push north past Mendocino if anyone cares (the population mostly stops).
 
 ### v0.3
 - Agencies: LA Metro, LADOT, Foothill Transit, Big Blue Bus, etc., each with
@@ -392,8 +408,8 @@ few iterations.
 | v1.3    | Per-route service frequency (Low/Std/High)                        |
 | v1.4    | Full SoCal: San Diego, Inland Empire, Palm Springs                |
 | v1.5    | Central Coast + south Central Valley                              |
-| v1.6+   | Charts, tutorial, time-of-day                                     |
-| v2.0+   | Bay Area, Sacramento, statewide rail (HSR)                        |
+| v1.6    | Bay Area + Sacramento (full state south of Mendocino)             |
+| v1.7+   | Charts, tutorial, time-of-day, statewide rail (HSR)               |
 | v0.5    | Multi-agency, voter approval, simple political events             |
 | v0.6    | Save/load, scenarios                                              |
 | v1.0    | Bay Area + statewide expansion, HSR, polished UI                  |
