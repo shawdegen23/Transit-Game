@@ -143,16 +143,26 @@ const COAST_PROFILE: [number, number][] = [
   [37.78, -122.51], // Ocean Beach
   [37.83, -122.50], // Cliff House / Lands End
   [37.83, -122.48], // Golden Gate Bridge
-  // Inside the Bay (between SF and Oakland) is also water but the
-  // simple west-of-cutoff check doesn't model bays. We accept that
-  // limitation — players just can't build subway tubes through SF Bay,
-  // which is fine because real-world transit doesn't either.
+  // North of Golden Gate up the Marin / Sonoma coast.
+  [37.86, -122.51], // Marin Headlands
+  [37.95, -122.62], // Stinson Beach
+  [38.05, -122.79], // Point Reyes Station fringe (Drakes Bay area)
+  [38.20, -122.85], // Bodega Head
+  [38.40, -123.00], // Sonoma coast
+  [38.60, -123.10], // Sea Ranch / Stewarts Point fringe
+  [38.80, -123.30], // top of bbox / Mendocino approach
+  // Inside SF Bay (between SF and Oakland) is also water, but the simple
+  // west-of-cutoff check doesn't model bays. We accept that — players
+  // just can't build subway tubes through SF Bay, which mirrors reality
+  // (BART has the only Transbay Tube and it took decades).
 ];
 
 export function isInOcean(lon: number, lat: number): boolean {
   if (lat < COAST_PROFILE[0][0] || lat > COAST_PROFILE[COAST_PROFILE.length - 1][0]) {
-    // Outside our coastline data range; only block the obvious far west.
-    return lon < -118.7;
+    // Outside our coastline data range. Only block clicks that are
+    // clearly far west of our bbox (i.e. west of -123, which is
+    // unambiguously open Pacific). Don't apply the cutoff inland.
+    return lon < -123.0;
   }
   // Linear interpolate cutoff lon for this latitude.
   for (let i = 1; i < COAST_PROFILE.length; i++) {
