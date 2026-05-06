@@ -31,12 +31,11 @@ import { readFileSync, rmSync, existsSync } from "node:fs";
 
 const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
 
-// Full California (south of Mendocino): SF / Bay Area west to Palm Springs
-// east, San Diego south to Sacramento north. ~6.5° × 6.25°.
+// v1.6 bbox: SoCal + Bay Area + Sacramento. Full-state expansion is
+// deferred to the v1.8 region-picker architecture which loads smaller
+// per-region files instead of one monolithic graph.
 const BBOX = { west: -122.5, south: 32.55, east: -116.0, north: 38.8 };
 
-// 13×9 = 117 tiles. We drop tertiary roads at this scale (see query
-// below) so the file size stays under ~50 MB.
 const TILES_X = 13;
 const TILES_Y = 9;
 

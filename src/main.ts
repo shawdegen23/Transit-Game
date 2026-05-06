@@ -53,6 +53,7 @@ import { getDate, setSpeed } from "./game/clock";
 
 // eslint-disable-next-line no-console
 console.log(
-  "[CA Transit Builder] v1.6 — Bay Area + Sacramento added. Full California " +
-    "south of Mendocino is now playable.",
+  "[CA Transit Builder] v1.7 — Pacific Ocean visibly outlined. Coastline " +
+    "extended up to Oregon border. Full-state expansion deferred to v1.8 " +
+    "with the region picker.",
 );

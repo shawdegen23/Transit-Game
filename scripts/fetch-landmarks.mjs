@@ -303,6 +303,15 @@ async function main() {
     { kind: "university", lon: -121.4234, lat: 38.5556, name: "Sacramento State", magnitude: 0.60 },
     { kind: "university", lon: -121.7405, lat: 38.5382, name: "UC Davis", magnitude: 0.80 },
     { kind: "stadium",    lon: -121.4998, lat: 38.5803, name: "Golden 1 Center (Kings)", magnitude: 0.65 },
+    // Far NorCal + Eastern Sierra
+    { kind: "university", lon: -124.0789, lat: 40.8767, name: "Cal Poly Humboldt (Arcata)", magnitude: 0.55 },
+    { kind: "airport",    lon: -123.8240, lat: 40.9781, name: "ACV (Cal Redwood Coast / Eureka)", magnitude: 0.20 },
+    { kind: "university", lon: -122.3252, lat: 40.6053, name: "Shasta College (Redding)", magnitude: 0.30 },
+    { kind: "airport",    lon: -122.2935, lat: 40.5097, name: "RDD (Redding Municipal)", magnitude: 0.20 },
+    { kind: "university", lon: -121.8467, lat: 39.7259, name: "Chico State (CSU Chico)", magnitude: 0.55 },
+    { kind: "beach",      lon: -123.8101, lat: 39.3076, name: "Mendocino Headlands", magnitude: 0.35 },
+    { kind: "beach",      lon: -124.2026, lat: 41.7558, name: "Crescent City Harbor", magnitude: 0.25 },
+    { kind: "theme_park", lon: -118.9719, lat: 37.6307, name: "Mammoth Mountain Ski Area", magnitude: 0.40 },
   ];
   for (const a of augment) {
     const key = `${a.kind}|${a.name.toLowerCase()}`;

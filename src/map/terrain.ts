@@ -150,12 +150,45 @@ const COAST_PROFILE: [number, number][] = [
   [38.20, -122.85], // Bodega Head
   [38.40, -123.00], // Sonoma coast
   [38.60, -123.10], // Sea Ranch / Stewarts Point fringe
-  [38.80, -123.30], // top of bbox / Mendocino approach
+  [38.80, -123.30], // Sea Ranch / Stewarts Point fringe
+  [39.00, -123.40], // Gualala
+  [39.30, -123.78], // Mendocino village
+  [39.60, -123.80], // Fort Bragg
+  [40.00, -124.00], // Lost Coast south
+  [40.30, -124.35], // Cape Mendocino
+  [40.60, -124.30], // Eureka / Humboldt Bay west edge
+  [40.85, -124.20], // Trinidad
+  [41.20, -124.10], // Klamath
+  [41.55, -124.10], // Crescent City
+  [41.80, -124.20], // Smith River
+  [42.00, -124.30], // Oregon border
   // Inside SF Bay (between SF and Oakland) is also water, but the simple
   // west-of-cutoff check doesn't model bays. We accept that — players
   // just can't build subway tubes through SF Bay, which mirrors reality
   // (BART has the only Transbay Tube and it took decades).
 ];
+
+// Return the coastline as an ordered list of [lon, lat] points (south to
+// north). Used to render the coast as a visible line on the map.
+export function getCoastline(): [number, number][] {
+  return COAST_PROFILE.map(([lat, lon]) => [lon, lat]);
+}
+
+// Return a closed polygon ring representing the Pacific Ocean within
+// our bbox. Points walk south-to-north along the coast, then loop west
+// and south to close the ring far out in the Pacific.
+export function getOceanPolygon(bbox: { west: number; south: number; north: number }): [number, number][] {
+  const coast = getCoastline();
+  // Push the western edge a bit further west than bbox.west so the polygon
+  // visibly extends off-screen, hiding the closure edge from the player.
+  const farWest = bbox.west - 1.0;
+  return [
+    ...coast,
+    [farWest, bbox.north],
+    [farWest, bbox.south],
+    coast[0], // close back to the southernmost coast point
+  ];
+}
 
 export function isInOcean(lon: number, lat: number): boolean {
   if (lat < COAST_PROFILE[0][0] || lat > COAST_PROFILE[COAST_PROFILE.length - 1][0]) {

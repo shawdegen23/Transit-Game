@@ -1,6 +1,7 @@
-// v1.6 starting viewport: full California south of Mendocino, all in one
-// frame. SF Bay Area at top-left, Sacramento at top-right, San Diego at
-// bottom. Player can zoom in to focus on a region.
+// v1.7: California south of Mendocino, with the Pacific Ocean now
+// visibly outlined as a polygon overlay. (Full-state bbox deferred to
+// v1.8 along with the region picker — single-file 35MB streets file is
+// too big without that architecture.)
 export const LA_INITIAL_VIEW = {
   longitude: -119.20,
   latitude: 35.70,
@@ -11,7 +12,7 @@ export const LA_INITIAL_VIEW = {
   maxZoom: 18,
 } as const;
 
-// Full CA bbox south of Mendocino (matches the data fetch scripts).
+// SoCal + Bay Area + Sacramento bbox (matches v1.6 data files).
 export const LA_BBOX = {
   west: -122.5,
   south: 32.55,

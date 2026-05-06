@@ -2,7 +2,7 @@
 
 import maplibregl from "maplibre-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
-import { LineLayer, ScatterplotLayer, PathLayer, TextLayer } from "@deck.gl/layers";
+import { LineLayer, ScatterplotLayer, PathLayer, TextLayer, PolygonLayer } from "@deck.gl/layers";
 
 import { LA_INITIAL_VIEW } from "../data/la-bbox";
 import { getMode } from "../game/modes";
@@ -15,7 +15,8 @@ import {
 } from "./baselineNetwork";
 import { loadStreetGraph, nearestNode } from "./streetGraph";
 import { getCorridorFeatures, type CorridorFeature } from "./corridors";
-import { isInOcean } from "./terrain";
+import { isInOcean, getCoastline, getOceanPolygon } from "./terrain";
+import { LA_BBOX } from "../data/la-bbox";
 import { getLandmarks, loadLandmarks, type Landmark } from "./landmarks";
 import { computeTrains, type TrainDot } from "./trains";
 import { getSpeedIdx } from "../game/clock";
@@ -122,7 +123,36 @@ export async function initMap(container: HTMLElement): Promise<maplibregl.Map> {
   subscribe((s) => {
     const layers: unknown[] = [];
 
-    // Corridor overlay (rail + freeway hints) — bottom of stack.
+    // Pacific Ocean overlay — bottom of stack so everything else draws on top.
+    // Subtle blue tint + brighter coastline outline.
+    const oceanPoly = getOceanPolygon(LA_BBOX);
+    const coast = getCoastline();
+    layers.push(
+      new PolygonLayer({
+        id: "ocean-fill",
+        data: [{ contour: oceanPoly }],
+        getPolygon: (d: { contour: [number, number][] }) => d.contour,
+        getFillColor: [40, 80, 130, 110],
+        getLineColor: [0, 0, 0, 0],
+        stroked: false,
+        filled: true,
+        pickable: false,
+      }),
+    );
+    layers.push(
+      new PathLayer({
+        id: "coastline",
+        data: [{ path: coast }],
+        getPath: (d: { path: [number, number][] }) => d.path,
+        getColor: [120, 180, 230, 200],
+        getWidth: 2,
+        widthUnits: "pixels",
+        capRounded: true,
+        jointRounded: true,
+      }),
+    );
+
+    // Corridor overlay (rail + freeway hints) — above ocean, below routes.
     if (showCorridors) {
       const corridors = getCorridorFeatures();
       if (corridors.length > 0) {
